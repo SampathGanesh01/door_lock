@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FaceDoor Cloud — Admin Panel</title>
+    <meta name="description" content="FaceDoor admin panel — manage registered faces and sync with the door kiosk." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet" />
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg: #07071a;
+            --surface: #0e0d24;
+            --surface2: #15122e;
+            --accent: #7c5fff;
+            --accent2: #9b7fff;
+            --cyan: #06b6d4;
+            --green: #10b981;
+            --red: #ef4444;
+            --yellow: #eab308;
+            --text: #e2e8f0;
+            --muted: rgba(180, 175, 220, 0.55);
+            --border: rgba(124, 95, 255, 0.15);
+            --border-glow: rgba(124, 95, 255, 0.35);
+            --shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
+            --radius: 16px;
+            --font: 'Inter', sans-serif;
+        }
+
+        html,
+        body {
+            height: 100%;
+            font-family: var(--font);
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        /* Blobs */
+        .blob {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(100px);
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.18;
+        }
+
+        .blob-1 {
+            width: 500px;
+            height: 500px;
+            background: #4f3db5;
+            top: -120px;
+            left: -100px;
+        }
+
+        .blob-2 {
+            width: 400px;
+            height: 400px;
+            background: #0e6ba8;
+            bottom: -80px;
+            right: -80px;
+        }
+
+        .blob-3 {
+            width: 300px;
+            height: 300px;
+            background: #7c1f96;
+            top: 40%;
+            left: 45%;
+        }
+
+        .app {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            padding: 0 24px 32px;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 0 16px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 24px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .logo-icon {
+            font-size: 28px;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            border-radius: 14px;
+            padding: 8px 11px;
+            line-height: 1;
+        }
+
+        .logo-name {
+            display: block;
+            font-size: 22px;
+            font-weight: 800;
+            background: linear-gradient(90deg, var(--accent), var(--cyan));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .logo-tag {
+            display: block;
+            font-size: 10px;
+            color: var(--muted);
+            font-weight: 600;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+        }
+
+        .hdr-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-pill {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            padding: 6px 14px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--muted);
+        }
+
+        .status-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--green);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1
+            }
+
+            50% {
+                opacity: 0.4
+            }
+        }
+
+        /* Main grid */
+        .main {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 20px;
+        }
+
+        @media(max-width:800px) {
+            .main {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Card */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            transition: border-color 0.25s;
+        }
+
+        .card:hover {
+            border-color: var(--border-glow);
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        .card-sub {
+            font-size: 11.5px;
+            color: var(--muted);
+            margin-bottom: 14px;
+            line-height: 1.55;
+        }
+
+        /* Stat row */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px 18px;
+        }
+
+        .stat-val {
+            font-size: 28px;
+            font-weight: 800;
+        }
+
+        .stat-lbl {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 2px;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-card.accent-card {
+            border-color: rgba(124, 95, 255, 0.3);
+        }
+
+        .stat-card.accent-card .stat-val {
+            color: var(--accent);
+        }
+
+        .stat-card.green-card {
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        .stat-card.green-card .stat-val {
+            color: var(--green);
+        }
+
+        .stat-card.yellow-card {
+            border-color: rgba(234, 179, 8, 0.3);
+        }
+
+        .stat-card.yellow-card .stat-val {
+            color: var(--yellow);
+        }
+
+        /* Registered faces list */
+        .faces-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 420px;
+            overflow-y: auto;
+        }
+
+        .face-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 10px 13px;
+            transition: border-color 0.2s;
+            animation: slideUp 0.22s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(8px);
+                opacity: 0
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1
+            }
+        }
+
+        .face-item:hover {
+            border-color: var(--border-glow);
+        }
+
+        .face-thumb {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--accent);
+            flex-shrink: 0;
+        }
+
+        .face-avatar {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: 700;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        .face-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .face-name {
+            font-size: 13px;
+            font-weight: 700;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .face-samples {
+            font-size: 10.5px;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+
+        .del-btn {
+            background: none;
+            border: 1px solid transparent;
+            border-radius: 8px;
+            color: var(--muted);
+            width: 28px;
+            height: 28px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .del-btn:hover {
+            border-color: rgba(239, 68, 68, 0.4);
+            color: var(--red);
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        /* Empty state */
+        .empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 32px 14px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .empty-icon {
+            font-size: 32px;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 11px 18px;
+            border: none;
+            border-radius: 12px;
+            font-family: var(--font);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.22s;
+            outline: none;
+            text-decoration: none;
+        }
+
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            color: #fff;
+            box-shadow: 0 4px 18px rgba(124, 95, 255, 0.28);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 24px rgba(124, 95, 255, 0.4);
+        }
+
+        .btn-outline {
+            background: rgba(124, 95, 255, 0.07);
+            border: 1px solid rgba(124, 95, 255, 0.28);
+            color: var(--accent);
+        }
+
+        .btn-outline:hover:not(:disabled) {
+            background: rgba(124, 95, 255, 0.15);
+        }
+
+        .btn-green {
+            background: linear-gradient(135deg, var(--green), #059669);
+            color: #fff;
+            box-shadow: 0 4px 18px rgba(16, 185, 129, 0.25);
+        }
+
+        .btn-green:hover:not(:disabled) {
+            transform: translateY(-1px);
+        }
+
+        .btn-sm {
+            padding: 7px 14px;
+            font-size: 12px;
+            border-radius: 9px;
+        }
+
+        .btn-full {
+            width: 100%;
+        }
+
+        /* Buttons row */
+        .btn-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        /* Mobile url box */
+        .url-box {
+            background: rgba(124, 95, 255, 0.07);
+            border: 1px solid rgba(124, 95, 255, 0.22);
+            border-radius: 10px;
+            padding: 10px 13px;
+            font-family: monospace;
+            font-size: 12px;
+            color: #b8adff;
+            word-break: break-all;
+            margin-bottom: 10px;
+            min-height: 36px;
+        }
+
+        /* Model pill */
+        .model-pill {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            background: rgba(234, 179, 8, 0.1);
+            border: 1px solid rgba(234, 179, 8, 0.3);
+            border-radius: 999px;
+            padding: 5px 13px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--yellow);
+        }
+
+        .model-pill.ready {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.3);
+            color: var(--green);
+        }
+
+        .spin {
+            width: 12px;
+            height: 12px;
+            border: 2px solid transparent;
+            border-top-color: currentColor;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg)
+            }
+        }
+
+        .model-pill.ready .spin {
+            display: none;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 26px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            min-width: 250px;
+            max-width: 420px;
+            background: var(--surface);
+            border: 1px solid var(--border-glow);
+            border-radius: 14px;
+            padding: 13px 20px;
+            font-size: 13px;
+            font-weight: 600;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.28s, transform 0.28s;
+            z-index: 999;
+            text-align: center;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+            pointer-events: auto;
+        }
+
+        .toast.ok {
+            border-color: rgba(16, 185, 129, 0.5);
+            color: var(--green);
+        }
+
+        .toast.err {
+            border-color: rgba(239, 68, 68, 0.5);
+            color: var(--red);
+        }
+
+        .toast.info {
+            border-color: var(--border-glow);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+
+    <div class="app">
+        <header>
+            <div class="logo">
+                <span class="logo-icon">🚪</span>
+                <div>
+                    <span class="logo-name">FaceDoor Cloud</span>
+                    <span class="logo-tag">ArcFace · Admin Panel</span>
+                </div>
+            </div>
+            <div class="hdr-right">
+                <div class="model-pill" id="modelPill">
+                    <span class="spin"></span>
+                    <span id="modelTxt">Loading ArcFace…</span>
+                </div>
+                <div class="status-pill">
+                    <span class="status-dot"></span>
+                    <span id="statusTxt">Live</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Stats row -->
+        <div class="stats-row">
+            <div class="stat-card accent-card">
+                <div class="stat-val" id="statTotal">—</div>
+                <div class="stat-lbl">Registered Faces</div>
+            </div>
+            <div class="stat-card green-card">
+                <div class="stat-val" id="statModel">—</div>
+                <div class="stat-lbl">Model Status</div>
+            </div>
+            <div class="stat-card yellow-card">
+                <div class="stat-val" id="statUptime">—</div>
+                <div class="stat-lbl">Server Uptime</div>
+            </div>
+        </div>
+
+        <div class="main">
+            <!-- Left: faces list -->
+            <div>
+                <div class="card">
+                    <div class="card-title">
+                        <span>🗂️</span> Registered People
+                        <button class="btn btn-outline btn-sm" onclick="loadFaces()" style="margin-left:auto">↻
+                            Refresh</button>
+                    </div>
+                    <div class="card-sub">Faces registered via mobile or uploaded from the kiosk.</div>
+                    <div class="faces-list" id="facesList">
+                        <div class="empty"><span class="empty-icon">⏳</span>
+                            <p>Loading…</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- faces.json sync -->
+                <div class="card" style="margin-top:16px">
+                    <div class="card-title"><span>🔄</span> Sync Database</div>
+                    <div class="card-sub">
+                        Download the current <code>faces.json</code> for the local kiosk,
+                        or upload the kiosk's file to merge it here.
+                    </div>
+                    <div class="btn-row">
+                        <a class="btn btn-green" href="/api/faces.json" download="faces.json">⬇️ Download faces.json</a>
+                        <label class="btn btn-outline" style="cursor:pointer">
+                            ⬆️ Upload faces.json
+                            <input type="file" accept=".json" onchange="uploadJson(this)" style="display:none" />
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: mobile registration + actions -->
+            <div style="display:flex;flex-direction:column;gap:16px">
+
+                <!-- Mobile registration link -->
+                <div class="card">
+                    <div class="card-title"><span>📱</span> Mobile Registration</div>
+                    <div class="card-sub">
+                        Share this link — someone can register their face from their phone with a guided 5-pose capture.
+                    </div>
+                    <div class="url-box" id="mobileUrlBox">Loading URL…</div>
+                    <div class="btn-row">
+                        <button class="btn btn-primary btn-full" onclick="copyMobileUrl()">📋 Copy Link</button>
+                    </div>
+                </div>
+
+                <!-- Quick actions -->
+                <div class="card">
+                    <div class="card-title"><span>⚡</span> Actions</div>
+                    <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+                        <button class="btn btn-outline btn-full" onclick="window.open('/mobile','_blank')">
+                            📱 Open Mobile Page
+                        </button>
+                        <button class="btn btn-outline btn-full" onclick="loadFaces()">
+                            ↻ Reload Face List
+                        </button>
+                        <a class="btn btn-outline btn-full" href="/api/status" target="_blank">
+                            📊 API Status JSON
+                        </a>
+                        <a class="btn btn-outline btn-full" href="/docs" target="_blank">
+                            📖 API Docs (Swagger)
+                        </a>
+                    </div>
+                </div>
+
+                <!-- API reference -->
+                <div class="card">
+                    <div class="card-title"><span>🔌</span> API Endpoints</div>
+                    <div style="font-size:11px;color:var(--muted);line-height:2;font-family:monospace">
+                        <div><span style="color:var(--green)">GET</span> /mobile</div>
+                        <div><span style="color:var(--cyan)">POST</span> /api/mobile_register</div>
+                        <div><span style="color:var(--green)">GET</span> /api/faces</div>
+                        <div><span style="color:var(--green)">GET</span> /api/faces.json</div>
+                        <div><span style="color:var(--cyan)">POST</span> /api/faces.json</div>
+                        <div><span style="color:var(--red)">DEL</span> /api/faces/{name}</div>
+                        <div><span style="color:var(--green)">GET</span> /api/status</div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const _t0 = Date.now();
+
+        // ── Toast ──────────────────────────────────────────────────────────────────
+        let _toastTm = null;
+        function showToast(msg, type = 'info', dur = 3500) {
+            const el = document.getElementById('toast');
+            el.textContent = msg; el.className = `toast show ${type}`;
+            clearTimeout(_toastTm);
+            _toastTm = setTimeout(() => { el.className = 'toast'; }, dur);
+        }
+
+        // ── Status ─────────────────────────────────────────────────────────────────
+        async function fetchStatus() {
+            try {
+                const data = await fetch('/api/status').then(r => r.json());
+                document.getElementById('statTotal').textContent = data.registered ?? '—';
+                const ready = data.model_ready;
+                document.getElementById('statModel').textContent = ready ? 'Ready' : 'Loading';
+
+                const pill = document.getElementById('modelPill');
+                const txt = document.getElementById('modelTxt');
+                pill.className = ready ? 'model-pill ready' : 'model-pill';
+                txt.textContent = ready ? 'ArcFace Ready ✓' : 'Loading ArcFace…';
+            } catch (_) { document.getElementById('statModel').textContent = 'Offline'; }
+
+            const secs = Math.floor((Date.now() - _t0) / 1000);
+            const m = Math.floor(secs / 60), s = secs % 60;
+            document.getElementById('statUptime').textContent = `${m}m ${s}s`;
+        }
+
+        // ── Faces list ─────────────────────────────────────────────────────────────
+        async function loadFaces() {
+            try {
+                const data = await fetch('/api/faces').then(r => r.json());
+                renderFaces(data.faces || []);
+            } catch (_) { document.getElementById('facesList').innerHTML = '<div class="empty"><span class="empty-icon">⚠️</span><p>Failed to load</p></div>'; }
+        }
+
+        function renderFaces(faces) {
+            const list = document.getElementById('facesList');
+            if (!faces.length) {
+                list.innerHTML = '<div class="empty"><span class="empty-icon">📋</span><p>No one registered yet</p></div>';
+                return;
+            }
+            list.innerHTML = faces.map(f => {
+                const thumb = f.face_b64
+                    ? `<img class="face-thumb" src="data:image/jpeg;base64,${f.face_b64}" alt="${f.name}"/>`
+                    : `<div class="face-avatar">${f.name[0].toUpperCase()}</div>`;
+                const safe = f.name.replace(/'/g, "\\'");
+                return `
+        <div class="face-item">
+          ${thumb}
+          <div class="face-info">
+            <div class="face-name">${f.name}</div>
+            <div class="face-samples">${f.samples} ArcFace embedding${f.samples !== 1 ? 's' : ''}</div>
+          </div>
+          <button class="del-btn" onclick="deleteFace('${safe}')" title="Remove">🗑️</button>
+        </div>`;
+            }).join('');
+        }
+
+        async function deleteFace(name) {
+            if (!confirm(`Remove ${name} from the database?`)) return;
+            try {
+                await fetch(`/api/faces/${encodeURIComponent(name)}`, { method: 'DELETE' });
+                showToast(`🗑️ ${name} removed.`, 'info');
+                loadFaces(); fetchStatus();
+            } catch (_) { showToast('Delete failed.', 'err'); }
+        }
+
+        // ── Upload faces.json ──────────────────────────────────────────────────────
+        async function uploadJson(input) {
+            const file = input.files[0];
+            if (!file) return;
+            try {
+                const text = await file.text();
+                const json = JSON.parse(text);
+                const res = await fetch('/api/faces.json', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(json),
+                });
+                const data = await res.json();
+                showToast(`✅ Merged ${data.merged} face(s). Total: ${data.total}`, 'ok');
+                loadFaces(); fetchStatus();
+            } catch (e) {
+                showToast('Upload failed: ' + e.message, 'err');
+            }
+            input.value = '';
+        }
+
+        // ── Mobile URL ─────────────────────────────────────────────────────────────
+        let mobileUrl = window.location.origin + '/mobile';
+
+        function initMobileUrl() {
+            const box = document.getElementById('mobileUrlBox');
+            box.textContent = mobileUrl;
+        }
+
+        async function copyMobileUrl() {
+            try {
+                await navigator.clipboard.writeText(mobileUrl);
+                showToast('📋 Link copied!', 'ok');
+            } catch (_) { showToast('Copy failed — copy manually: ' + mobileUrl, 'err', 6000); }
+        }
+
+        // ── Boot ───────────────────────────────────────────────────────────────────
+        initMobileUrl();
+        fetchStatus();
+        loadFaces();
+        setInterval(fetchStatus, 5000);
+        setInterval(loadFaces, 15000);
+    </script>
+</body>
+
+</html>
