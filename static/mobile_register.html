@@ -3,31 +3,32 @@
 
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-    <title>FaceDoor — Register Your Face</title>
-    <meta name="description" content="Auto-guided face registration for FaceDoor access control." />
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <title>FaceDoor — Register</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet" />
     <style>
         *,
         *::before,
         *::after {
             box-sizing: border-box;
             margin: 0;
-            padding: 0;
+            padding: 0
         }
 
         :root {
-            --bg: #090714;
-            --s2: #13102a;
-            --accent: #7c5fff;
-            --cyan: #06b6d4;
-            --green: #22d47a;
-            --red: #f04060;
-            --yellow: #f0b840;
-            --text: #e8e4ff;
-            --muted: rgba(200, 190, 240, 0.55);
-            --border: rgba(124, 95, 255, 0.18);
+            --bg: #07060f;
+            --s2: #110f22;
+            --accent: #6c5ce7;
+            --accent2: #a29bfe;
+            --cyan: #00cec9;
+            --green: #00b894;
+            --red: #d63031;
+            --yellow: #fdcb6e;
+            --text: #f0eeff;
+            --muted: rgba(200, 190, 255, .5);
+            --border: rgba(108, 92, 231, .2);
         }
 
         html,
@@ -37,322 +38,483 @@
             background: var(--bg);
             color: var(--text);
             overflow: hidden;
+            -webkit-tap-highlight-color: transparent
         }
 
-        /* ── Blobs ── */
+        /* ─── Ambient blobs ─── */
         .blob {
             position: fixed;
             border-radius: 50%;
-            filter: blur(80px);
+            filter: blur(90px);
             pointer-events: none;
             z-index: 0;
-            opacity: 0.3;
+            opacity: .25
         }
 
-        .blob-1 {
-            width: 360px;
-            height: 360px;
-            background: #4f3db5;
-            top: -80px;
-            left: -80px;
+        .b1 {
+            width: 380px;
+            height: 380px;
+            background: #4834d4;
+            top: -100px;
+            left: -100px
         }
 
-        .blob-2 {
+        .b2 {
             width: 300px;
             height: 300px;
-            background: #0e6ba8;
-            bottom: 60px;
-            right: -60px;
+            background: #0984e3;
+            bottom: 40px;
+            right: -80px
         }
 
-        .blob-3 {
-            width: 240px;
-            height: 240px;
-            background: #7c1f96;
-            top: 40%;
-            left: 40%;
+        .b3 {
+            width: 200px;
+            height: 200px;
+            background: #6c5ce7;
+            top: 45%;
+            left: 35%
         }
 
-        /* ── Wrap ── */
-        .wrap {
-            position: relative;
-            z-index: 1;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            max-width: 420px;
-            margin: 0 auto;
+        /* ─── Screen system ─── */
+        .screen {
+            position: absolute;
+            inset: 0;
+            z-index: 10;
+            display: none;
+            flex-direction: column
         }
 
-        /* ── Header ── */
-        .hdr {
-            display: flex;
+        .screen.active {
+            display: flex
+        }
+
+        /* ══════════════════════════════════
+       SCREEN 1 — Welcome / Permission
+    ══════════════════════════════════ */
+        #scWelcome {
             align-items: center;
-            gap: 10px;
-            padding: 14px 16px 10px;
-            border-bottom: 1px solid var(--border);
-            flex-shrink: 0;
+            justify-content: center;
+            padding: 32px 28px;
+            gap: 0;
+            background: var(--bg)
         }
 
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 10px;
+        .wel-logo {
+            font-size: 56px;
+            margin-bottom: 20px;
+            animation: floatY 3s ease-in-out infinite
         }
 
-        .logo-icon {
-            font-size: 24px;
+        @keyframes floatY {
+
+            0%,
+            100% {
+                transform: translateY(0)
+            }
+
+            50% {
+                transform: translateY(-10px)
+            }
         }
 
-        .logo-name {
-            font-size: 18px;
+        .wel-title {
+            font-size: 26px;
             font-weight: 800;
-            background: linear-gradient(135deg, #7c5fff, #f0a050);
+            text-align: center;
+            line-height: 1.2;
+            background: linear-gradient(135deg, #a29bfe, #6c5ce7, #00cec9);
             -webkit-background-clip: text;
             background-clip: text;
-            -webkit-text-fill-color: transparent;
+            -webkit-text-fill-color: transparent
         }
 
-        .logo-tag {
-            font-size: 10px;
+        .wel-sub {
+            font-size: 14px;
             color: var(--muted);
-            display: block;
-            margin-top: 1px;
+            text-align: center;
+            margin: 10px 0 28px;
+            line-height: 1.6
         }
 
-        /* ── Pose dots ── */
-        .pose-dots {
+        .wel-steps {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 32px
+        }
+
+        .step-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            background: rgba(108, 92, 231, .1);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 14px
+        }
+
+        .step-icon {
+            font-size: 24px;
+            flex-shrink: 0;
+            width: 40px;
+            text-align: center
+        }
+
+        .step-body {
+            flex: 1
+        }
+
+        .step-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text)
+        }
+
+        .step-desc {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 2px;
+            line-height: 1.4
+        }
+
+        .btn-allow {
+            width: 100%;
+            padding: 17px;
+            border: none;
+            border-radius: 16px;
+            background: linear-gradient(135deg, var(--accent), #a29bfe);
+            color: #fff;
+            font-size: 16px;
+            font-weight: 700;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+            letter-spacing: .3px;
+            box-shadow: 0 12px 32px rgba(108, 92, 231, .45);
+            transition: transform .2s, box-shadow .2s
+        }
+
+        .btn-allow:active {
+            transform: scale(.97)
+        }
+
+        .wel-privacy {
+            font-size: 11px;
+            color: var(--muted);
+            text-align: center;
+            margin-top: 12px;
+            line-height: 1.5
+        }
+
+        /* ══════════════════════════════════
+       SCREEN 2 — Camera / Capture
+    ══════════════════════════════════ */
+        #scCamera {
+            background: #000
+        }
+
+        .cam-hdr {
+            position: relative;
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px 10px;
+            background: rgba(7, 6, 15, .9);
+            flex-shrink: 0
+        }
+
+        .cam-logo {
+            display: flex;
+            align-items: center;
+            gap: 8px
+        }
+
+        .cam-logo-icon {
+            font-size: 20px
+        }
+
+        .cam-logo-name {
+            font-size: 16px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #a29bfe, #6c5ce7);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent
+        }
+
+        .cam-step-badge {
+            background: rgba(108, 92, 231, .2);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 5px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--accent2)
+        }
+
+        /* Progress dots */
+        .prog-dots {
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 6px;
-            padding: 6px 0;
+            padding: 8px 0 4px;
             flex-shrink: 0;
+            background: rgba(7, 6, 15, .9)
         }
 
-        .pdot {
+        .dot {
             width: 7px;
             height: 7px;
             border-radius: 50%;
-            background: var(--s2);
-            border: 1.5px solid var(--border);
-            transition: all 0.3s;
+            background: rgba(255, 255, 255, .1);
+            border: 1.5px solid rgba(255, 255, 255, .15);
+            transition: all .35s cubic-bezier(.34, 1.56, .64, 1)
         }
 
-        .pdot.active {
+        .dot.active {
+            width: 22px;
+            border-radius: 5px;
             background: var(--accent);
             border-color: var(--accent);
-            box-shadow: 0 0 8px var(--accent);
-            width: 20px;
-            border-radius: 4px;
+            box-shadow: 0 0 10px var(--accent)
         }
 
-        .pdot.done {
+        .dot.done {
             background: var(--green);
             border-color: var(--green);
+            box-shadow: 0 0 6px var(--green)
         }
 
-        /* ── Camera area ── */
-        .cam-area {
+        /* Camera viewport */
+        .cam-view {
             position: relative;
             flex: 1;
             overflow: hidden;
-            background: #060412;
+            background: #000
         }
 
         #vid {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            transform: scaleX(-1);
-            /* mirror selfie */
+            transform: scaleX(-1)
         }
 
-        /* ── Oval guide ── */
+        /* Oval guide */
         .oval-wrap {
             position: absolute;
             inset: 0;
             display: flex;
             align-items: center;
             justify-content: center;
-            pointer-events: none;
+            pointer-events: none
         }
 
-        .oval {
-            width: 56%;
-            aspect-ratio: 3/4;
-            border: 2.5px solid rgba(124, 95, 255, 0.6);
-            border-radius: 50%;
-            box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.38);
-            transition: border-color 0.4s;
-            animation: ovalPulse 2.5s ease-in-out infinite;
+        .oval-svg {
+            width: 58%;
+            max-width: 220px
         }
 
-        @keyframes ovalPulse {
-
-            0%,
-            100% {
-                border-color: rgba(124, 95, 255, 0.5);
-            }
-
-            50% {
-                border-color: rgba(124, 95, 255, 1);
-            }
+        .oval-path {
+            fill: none;
+            stroke-width: 3;
+            stroke-linecap: round;
+            stroke-dasharray: 8 4
         }
 
-        .oval.green {
-            border-color: var(--green) !important;
-            animation: greenPulse 0.5s ease-in-out infinite;
+        #ovalPath {
+            stroke: rgba(108, 92, 231, .7);
+            transition: stroke .4s
         }
 
-        @keyframes greenPulse {
-
-            0%,
-            100% {
-                border-color: rgba(34, 212, 122, 0.6);
-            }
-
-            50% {
-                border-color: rgba(34, 212, 122, 1);
-            }
-        }
-
-        /* ── Direction overlay ── */
-        .dir-overlay {
+        .oval-bg-mask {
             position: absolute;
             inset: 0;
+            background: rgba(0, 0, 0, .35);
+            pointer-events: none
+        }
+
+        /* Face status indicator */
+        .face-status {
+            position: absolute;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(7, 6, 15, .8);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 6px 14px;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all .3s;
+            white-space: nowrap
+        }
+
+        .face-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--muted);
+            transition: background .3s;
+            animation: pulse 1.5s ease-in-out infinite
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1
+            }
+
+            50% {
+                opacity: .4
+            }
+        }
+
+        .face-status.detected .face-dot {
+            background: var(--green);
+            animation: none
+        }
+
+        .face-status.detected {
+            border-color: rgba(0, 184, 148, .4);
+            color: var(--green)
+        }
+
+        .face-status.no-face .face-dot {
+            background: var(--yellow)
+        }
+
+        .face-status.no-face {
+            border-color: rgba(253, 203, 110, .3);
+            color: var(--yellow)
+        }
+
+        /* Instruction bar */
+        .instr-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(7, 6, 15, .95) 70%, transparent);
+            padding: 12px 16px 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: flex-end;
-            padding-bottom: 18px;
+            gap: 8px
         }
 
-        .dir-instruction {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 4px;
-            background: rgba(9, 7, 20, 0.72);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(124, 95, 255, 0.25);
-            border-radius: 18px;
-            padding: 10px 28px;
+        .pose-arrow {
+            font-size: 36px;
+            transition: all .3s
         }
 
-        .dir-arrow {
-            font-size: 32px;
-            animation: bounce 0.7s ease-in-out infinite alternate;
+        .pose-arrow.bounce-left {
+            animation: bl .6s ease-in-out infinite alternate
         }
 
-        .dir-arrow[data-dir="center"] {
-            animation: none;
+        .pose-arrow.bounce-right {
+            animation: br .6s ease-in-out infinite alternate
         }
 
-        @keyframes bounce {
-            from {
-                transform: translateY(0);
-            }
-
-            to {
-                transform: translateY(-7px);
-            }
+        .pose-arrow.bounce-up {
+            animation: bu .6s ease-in-out infinite alternate
         }
 
-        .dir-arrow[data-dir="left"] {
-            animation: bounceLeft 0.7s ease-in-out infinite alternate;
+        .pose-arrow.bounce-down {
+            animation: bd .6s ease-in-out infinite alternate
         }
 
-        .dir-arrow[data-dir="right"] {
-            animation: bounceRight 0.7s ease-in-out infinite alternate;
-        }
-
-        .dir-arrow[data-dir="up"] {
-            animation: bounceUp 0.7s ease-in-out infinite alternate;
-        }
-
-        .dir-arrow[data-dir="down"] {
-            animation: bounceDown 0.7s ease-in-out infinite alternate;
-        }
-
-        @keyframes bounceLeft {
+        @keyframes bl {
             from {
                 transform: translateX(0)
             }
 
             to {
-                transform: translateX(-8px)
+                transform: translateX(-10px)
             }
         }
 
-        @keyframes bounceRight {
+        @keyframes br {
             from {
                 transform: translateX(0)
             }
 
             to {
-                transform: translateX(8px)
+                transform: translateX(10px)
             }
         }
 
-        @keyframes bounceUp {
+        @keyframes bu {
             from {
                 transform: translateY(0)
             }
 
             to {
-                transform: translateY(-8px)
+                transform: translateY(-10px)
             }
         }
 
-        @keyframes bounceDown {
+        @keyframes bd {
             from {
                 transform: translateY(0)
             }
 
             to {
-                transform: translateY(8px)
+                transform: translateY(10px)
             }
         }
 
-        .dir-text {
-            font-size: 15px;
-            font-weight: 700;
-            color: #e8e4ff;
+        .pose-title {
+            font-size: 17px;
+            font-weight: 800;
+            text-align: center
         }
 
-        .dir-sub {
-            font-size: 11px;
+        .pose-sub {
+            font-size: 12px;
             color: var(--muted);
+            text-align: center
         }
 
-        /* ── Countdown ring ── */
+        /* Countdown ring */
         .ring-wrap {
             position: absolute;
-            top: 16px;
-            right: 16px;
-            width: 78px;
-            height: 78px;
+            top: 14px;
+            right: 14px;
+            width: 72px;
+            height: 72px;
+            display: none
+        }
+
+        .ring-wrap.visible {
+            display: block
         }
 
         .ring-wrap svg {
-            transform: rotate(-90deg);
+            transform: rotate(-90deg)
         }
 
         .ring-bg {
             fill: none;
-            stroke: rgba(255, 255, 255, 0.08);
-            stroke-width: 7;
+            stroke: rgba(255, 255, 255, .08);
+            stroke-width: 6
         }
 
         .ring-fg {
             fill: none;
             stroke: var(--accent);
-            stroke-width: 7;
+            stroke-width: 6;
             stroke-linecap: round;
-            stroke-dasharray: 226;
+            stroke-dasharray: 213;
             stroke-dashoffset: 0;
-            transition: stroke-dashoffset 1s linear;
+            transition: stroke-dashoffset 1s linear
         }
 
         .ring-num {
@@ -361,72 +523,64 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 22px;
+            font-size: 20px;
             font-weight: 800;
-            color: #e8e4ff;
+            color: var(--text)
         }
 
-        /* ── Flash ── */
+        /* Flash */
         .flash {
             position: absolute;
             inset: 0;
             background: #fff;
             opacity: 0;
             pointer-events: none;
-            transition: opacity 0.12s;
+            transition: opacity .1s
         }
 
         .flash.go {
-            opacity: 0.7;
+            opacity: .75
         }
 
-        /* ── Photo strip ── */
-        .strip-bar {
+        /* Photo strip */
+        .strip {
             display: flex;
-            gap: 5px;
-            padding: 8px 12px;
-            flex-shrink: 0;
-            background: rgba(10, 8, 22, 0.85);
-        }
-
-        .pslot-wrap {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 3px;
+            gap: 4px;
+            padding: 8px 10px;
+            background: rgba(7, 6, 15, .92);
+            flex-shrink: 0
         }
 
         .pslot {
-            width: 100%;
+            flex: 1;
             aspect-ratio: 1;
             border-radius: 8px;
-            border: 1.5px dashed rgba(255, 255, 255, 0.13);
+            border: 1.5px dashed rgba(255, 255, 255, .1);
             background: var(--s2);
+            overflow: hidden;
+            position: relative;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 700;
             color: var(--muted);
-            overflow: hidden;
-            position: relative;
-            transition: all 0.3s;
+            transition: all .3s
         }
 
-        .pslot.active-s {
+        .pslot.cur {
             border-color: var(--accent);
-            box-shadow: 0 0 8px var(--accent);
+            box-shadow: 0 0 10px rgba(108, 92, 231, .5)
         }
 
-        .pslot.filled {
-            border-color: var(--green);
+        .pslot.ok {
+            border-color: var(--green)
         }
 
         .pslot img {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: cover
         }
 
         .pslot .ck {
@@ -435,162 +589,175 @@
             right: 2px;
             background: var(--green);
             border-radius: 50%;
-            width: 14px;
-            height: 14px;
+            width: 13px;
+            height: 13px;
             font-size: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
             color: #fff;
-            font-weight: 900;
+            font-weight: 900
         }
 
-        .pose-label {
+        .slabel {
             font-size: 8px;
             font-weight: 700;
             color: var(--muted);
             text-transform: uppercase;
+            text-align: center;
+            margin-top: 2px
         }
 
-        /* ── Name panel (slides up) ── */
-        .name-panel {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: rgba(10, 7, 22, 0.97);
-            backdrop-filter: blur(24px);
-            border-top: 1px solid rgba(124, 95, 255, 0.3);
-            border-radius: 24px 24px 0 0;
-            padding: 20px 20px 28px;
-            transform: translateY(100%);
-            transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
-            z-index: 20;
-        }
-
-        .name-panel.open {
-            transform: translateY(0);
-        }
-
-        .name-panel-inner {
+        .pslot-wrap {
+            flex: 1;
             display: flex;
-            flex-direction: column;
-            gap: 14px;
+            flex-direction: column
         }
 
-        .capture-done-title {
-            font-size: 17px;
+        /* ══════════════════════════════════
+       SCREEN 3 — Name Form
+    ══════════════════════════════════ */
+        #scForm {
+            background: var(--bg);
+            align-items: stretch;
+            padding: 0
+        }
+
+        .form-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px 20px 32px
+        }
+
+        .form-top {
+            text-align: center;
+            margin-bottom: 24px
+        }
+
+        .form-emoji {
+            font-size: 48px;
+            margin-bottom: 12px
+        }
+
+        .form-title {
+            font-size: 22px;
             font-weight: 800;
-            text-align: center;
+            margin-bottom: 6px
         }
 
-        .capture-done-sub {
-            font-size: 12px;
+        .form-sub {
+            font-size: 13px;
             color: var(--muted);
-            text-align: center;
-            margin-top: 3px;
+            line-height: 1.5
         }
 
-        .thumb-row {
+        .thumb-grid {
             display: flex;
             gap: 8px;
             justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 24px
         }
 
-        .thumb-row img {
-            width: 52px;
-            height: 52px;
+        .thumb-grid img {
+            width: 56px;
+            height: 56px;
             border-radius: 10px;
             object-fit: cover;
             border: 2px solid var(--green);
+            box-shadow: 0 0 12px rgba(0, 184, 148, .3)
         }
 
-        .form-lbl {
+        .fld {
+            margin-bottom: 16px
+        }
+
+        .fld label {
+            display: block;
             font-size: 11px;
             font-weight: 700;
             color: var(--muted);
             text-transform: uppercase;
-            letter-spacing: 0.6px;
+            letter-spacing: .6px;
+            margin-bottom: 7px
         }
 
-        .form-inp {
+        .fld input {
             width: 100%;
             background: var(--s2);
             border: 1px solid var(--border);
-            border-radius: 12px;
+            border-radius: 14px;
             color: var(--text);
             font-family: 'Inter', sans-serif;
             font-size: 15px;
-            padding: 13px 14px;
+            padding: 14px 16px;
             outline: none;
-            transition: border-color 0.2s, box-shadow 0.2s;
+            transition: border-color .2s, box-shadow .2s;
+            -webkit-appearance: none
         }
 
-        .form-inp:focus {
+        .fld input:focus {
             border-color: var(--accent);
-            box-shadow: 0 0 0 3px rgba(124, 95, 255, 0.15);
+            box-shadow: 0 0 0 3px rgba(108, 92, 231, .18)
         }
 
-        .btn-reg {
+        .btn-submit {
             width: 100%;
-            background: linear-gradient(135deg, var(--accent), #9b7fff);
+            padding: 16px;
             border: none;
-            border-radius: 14px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, var(--accent), #a29bfe);
             color: #fff;
-            font-family: 'Inter', sans-serif;
-            font-size: 15px;
+            font-size: 16px;
             font-weight: 700;
-            padding: 14px;
-            cursor: pointer;
-            transition: all 0.22s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-
-        .btn-reg:hover:not(:disabled) {
-            transform: translateY(-1px);
-            box-shadow: 0 8px 24px rgba(124, 95, 255, 0.4);
-        }
-
-        .btn-reg:disabled {
-            opacity: 0.45;
-            cursor: not-allowed;
-        }
-
-        .btn-retry {
-            width: 100%;
-            background: none;
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            color: var(--muted);
             font-family: 'Inter', sans-serif;
+            cursor: pointer;
+            box-shadow: 0 10px 28px rgba(108, 92, 231, .4);
+            transition: all .2s;
+            margin-bottom: 10px
+        }
+
+        .btn-submit:disabled {
+            opacity: .45;
+            cursor: not-allowed
+        }
+
+        .btn-submit:active:not(:disabled) {
+            transform: scale(.98)
+        }
+
+        .btn-retake {
+            width: 100%;
+            padding: 13px;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            background: transparent;
+            color: var(--muted);
             font-size: 13px;
             font-weight: 600;
-            padding: 11px;
+            font-family: 'Inter', sans-serif;
             cursor: pointer;
-            transition: border-color 0.2s;
+            transition: border-color .2s
+        }
+
+        .btn-retake:active {
+            border-color: var(--accent)
         }
 
         .prog-wrap {
-            display: none;
-        }
-
-        .prog-wrap.visible {
-            display: block;
+            margin-bottom: 12px
         }
 
         .prog-lbl {
             font-size: 11px;
             color: var(--muted);
-            margin-bottom: 5px;
+            margin-bottom: 5px
         }
 
         .prog-bg {
-            background: rgba(255, 255, 255, 0.07);
+            background: rgba(255, 255, 255, .06);
             border-radius: 4px;
-            height: 4px;
+            height: 4px
         }
 
         .prog-bar {
@@ -598,40 +765,31 @@
             border-radius: 4px;
             background: linear-gradient(90deg, var(--accent), var(--cyan));
             width: 0;
-            transition: width 0.5s ease;
+            transition: width .5s ease
         }
 
-        /* ── Success screen ── */
-        .success-screen {
-            position: absolute;
-            inset: 0;
-            z-index: 30;
-            display: none;
-            flex-direction: column;
+        /* ══════════════════════════════════
+       SCREEN 4 — Success
+    ══════════════════════════════════ */
+        #scSuccess {
             align-items: center;
             justify-content: center;
-            gap: 16px;
-            background: rgba(9, 7, 20, 0.98);
-            text-align: center;
             padding: 32px;
+            gap: 16px;
+            background: var(--bg);
+            text-align: center
         }
 
-        .success-screen.visible {
-            display: flex;
-        }
-
-        .success-ring {
-            width: 80px;
-            height: 80px;
+        .succ-anim {
+            width: 90px;
+            height: 90px;
             border-radius: 50%;
-            background: linear-gradient(135deg, var(--green), #059669);
+            background: linear-gradient(135deg, var(--green), #00b894bb);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 36px;
-            color: #fff;
-            font-weight: 900;
-            animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            font-size: 40px;
+            animation: popIn .5s cubic-bezier(.34, 1.56, .64, 1)
         }
 
         @keyframes popIn {
@@ -646,255 +804,294 @@
             }
         }
 
-        .success-title {
-            font-size: 24px;
-            font-weight: 800;
+        .succ-title {
+            font-size: 26px;
+            font-weight: 800
         }
 
-        .success-sub {
-            font-size: 13px;
+        .succ-sub {
+            font-size: 14px;
             color: var(--muted);
+            line-height: 1.6;
+            max-width: 280px
         }
 
-        .btn-another {
-            background: rgba(124, 95, 255, 0.14);
-            border: 1px solid rgba(124, 95, 255, 0.3);
-            color: var(--accent);
-            border-radius: 14px;
+        .btn-again {
+            background: rgba(108, 92, 231, .15);
+            border: 1px solid rgba(108, 92, 231, .3);
+            color: var(--accent2);
+            border-radius: 16px;
             font-family: 'Inter', sans-serif;
             font-size: 14px;
             font-weight: 700;
-            padding: 12px 24px;
+            padding: 13px 28px;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all .2s
         }
 
-        .btn-another:hover {
-            background: rgba(124, 95, 255, 0.25);
-        }
-
-        /* ── Camera-denied panel ── */
-        .denied-panel {
-            position: absolute;
-            inset: 0;
-            z-index: 25;
-            display: none;
-            flex-direction: column;
+        /* ══════════════════════════════════
+       SCREEN 5 — Error / Permission Denied
+    ══════════════════════════════════ */
+        #scError {
             align-items: center;
             justify-content: center;
-            background: var(--bg);
-            text-align: center;
             padding: 32px;
-            gap: 16px;
+            gap: 14px;
+            background: var(--bg);
+            text-align: center
         }
 
-        .denied-panel.visible {
-            display: flex;
+        .err-icon {
+            font-size: 60px
         }
 
-        .denied-icon {
-            font-size: 56px;
-        }
-
-        .denied-title {
-            font-size: 18px;
+        .err-title {
+            font-size: 20px;
             font-weight: 800;
-            color: var(--red);
+            color: var(--red)
         }
 
-        .denied-msg {
+        .err-msg {
             font-size: 13px;
             color: var(--muted);
-            line-height: 1.6;
-            max-width: 280px;
+            line-height: 1.65;
+            max-width: 290px
         }
 
-        /* ── Toast ── */
+        .btn-reload {
+            padding: 14px 32px;
+            border: none;
+            border-radius: 16px;
+            background: var(--s2);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer
+        }
+
+        /* Toast */
         .toast {
-            position: absolute;
-            bottom: 80px;
+            position: fixed;
+            bottom: 24px;
             left: 50%;
-            transform: translateX(-50%) translateY(10px);
-            background: rgba(20, 15, 40, 0.92);
-            border: 1px solid rgba(124, 95, 255, 0.3);
-            border-radius: 12px;
-            padding: 9px 18px;
-            font-size: 12px;
+            transform: translateX(-50%) translateY(20px);
+            background: rgba(20, 16, 40, .95);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 10px 20px;
+            font-size: 13px;
             font-weight: 600;
             color: var(--text);
             opacity: 0;
             pointer-events: none;
-            transition: opacity 0.25s, transform 0.25s;
-            z-index: 50;
-            white-space: nowrap;
+            transition: opacity .25s, transform .25s;
+            z-index: 999;
+            white-space: nowrap
         }
 
         .toast.show {
             opacity: 1;
-            transform: translateX(-50%) translateY(0);
+            transform: translateX(-50%) translateY(0)
         }
 
         .toast.ok {
-            border-color: rgba(34, 212, 122, 0.4);
-            color: var(--green);
+            border-color: rgba(0, 184, 148, .4);
+            color: var(--green)
         }
 
         .toast.err {
-            border-color: rgba(240, 64, 96, 0.5);
-            color: var(--red);
+            border-color: rgba(214, 48, 49, .4);
+            color: var(--red)
         }
 
         canvas {
-            display: none;
+            display: none
         }
     </style>
 </head>
 
 <body>
+    <div class="blob b1"></div>
+    <div class="blob b2"></div>
+    <div class="blob b3"></div>
 
-    <div class="blob blob-1"></div>
-    <div class="blob blob-2"></div>
-    <div class="blob blob-3"></div>
-
-    <div class="wrap">
-
-        <!-- Header -->
-        <header class="hdr">
-            <div class="logo">
-                <span class="logo-icon">🚪</span>
-                <div>
-                    <span class="logo-name">FaceDoor</span>
-                    <span class="logo-tag">Auto Face Registration · ArcFace</span>
+    <!-- ── SCREEN 1: Welcome ── -->
+    <div class="screen active" id="scWelcome">
+        <div class="wel-logo">🪪</div>
+        <div class="wel-title">Register Your Face</div>
+        <div class="wel-sub">Secure, one-time face enrollment for<br>FaceDoor access control</div>
+        <div class="wel-steps">
+            <div class="step-row">
+                <div class="step-icon">📸</div>
+                <div class="step-body">
+                    <div class="step-title">5 Quick Poses</div>
+                    <div class="step-desc">Look forward, left, right, up and down — takes under 30 seconds</div>
                 </div>
             </div>
-        </header>
-
-        <!-- Pose progress dots -->
-        <div class="pose-dots" id="poseDots">
-            <div class="pdot active" id="pd0"></div>
-            <div class="pdot" id="pd1"></div>
-            <div class="pdot" id="pd2"></div>
-            <div class="pdot" id="pd3"></div>
-            <div class="pdot" id="pd4"></div>
+            <div class="step-row">
+                <div class="step-icon">🤖</div>
+                <div class="step-body">
+                    <div class="step-title">Auto-Capture</div>
+                    <div class="step-desc">We detect your face automatically — no tapping needed</div>
+                </div>
+            </div>
+            <div class="step-row">
+                <div class="step-icon">🔒</div>
+                <div class="step-body">
+                    <div class="step-title">Private &amp; Secure</div>
+                    <div class="step-desc">Your face data is only stored on the local server — never shared</div>
+                </div>
+            </div>
         </div>
+        <button class="btn-allow" id="btnAllow" onclick="requestCamera()">
+            Allow Camera &amp; Begin →
+        </button>
+        <div class="wel-privacy">🔐 Camera is used only for enrollment &amp; then stopped</div>
+    </div>
 
-        <!-- Camera area -->
-        <div class="cam-area" id="camArea">
+    <!-- ── SCREEN 2: Camera ── -->
+    <div class="screen" id="scCamera">
+        <div class="cam-hdr">
+            <div class="cam-logo">
+                <span class="cam-logo-icon">🚪</span>
+                <span class="cam-logo-name">FaceDoor</span>
+            </div>
+            <div class="cam-step-badge" id="stepBadge">Pose 1 of 5</div>
+        </div>
+        <div class="prog-dots" id="progDots">
+            <div class="dot active" id="d0"></div>
+            <div class="dot" id="d1"></div>
+            <div class="dot" id="d2"></div>
+            <div class="dot" id="d3"></div>
+            <div class="dot" id="d4"></div>
+        </div>
+        <div class="cam-view">
             <video id="vid" autoplay playsinline muted></video>
-
+            <div class="oval-bg-mask" id="ovalMask"></div>
             <div class="oval-wrap">
-                <div class="oval" id="oval"></div>
+                <svg class="oval-svg" viewBox="0 0 200 270" xmlns="http://www.w3.org/2000/svg">
+                    <ellipse id="ovalPath" class="oval-path" cx="100" cy="135" rx="88" ry="120" />
+                </svg>
             </div>
-
-            <div class="dir-overlay" id="dirOverlay">
-                <div class="dir-instruction">
-                    <div class="dir-arrow" id="dirArrow" data-dir="center">😊</div>
-                    <div class="dir-text" id="dirText">Face Forward</div>
-                    <div class="dir-sub" id="dirSub">Hold still — capturing in…</div>
-                </div>
+            <div class="face-status no-face" id="faceStatus">
+                <div class="face-dot"></div>
+                <span id="faceStatusText">Position your face</span>
             </div>
-
             <div class="ring-wrap" id="ringWrap">
-                <svg width="78" height="78" viewBox="0 0 78 78">
-                    <circle class="ring-bg" cx="39" cy="39" r="36" />
-                    <circle class="ring-fg" cx="39" cy="39" r="36" id="ringFg" />
+                <svg width="72" height="72" viewBox="0 0 72 72">
+                    <circle class="ring-bg" cx="36" cy="36" r="34" />
+                    <circle class="ring-fg" cx="36" cy="36" r="34" id="ringFg" />
                 </svg>
                 <div class="ring-num" id="ringNum">3</div>
             </div>
-
             <div class="flash" id="flash"></div>
+            <div class="instr-bar">
+                <div class="pose-arrow" id="poseArrow">😊</div>
+                <div class="pose-title" id="poseTitle">Face Forward</div>
+                <div class="pose-sub" id="poseSub">Centre your face in the oval</div>
+            </div>
         </div>
-
-        <!-- Photo strip -->
-        <div class="strip-bar">
+        <div class="strip" id="strip">
             <div class="pslot-wrap">
-                <div class="pslot active-s" id="ps0">1</div>
-                <div class="pose-label">Center</div>
+                <div class="pslot cur" id="ps0">1</div>
+                <div class="slabel">Front</div>
             </div>
             <div class="pslot-wrap">
                 <div class="pslot" id="ps1">2</div>
-                <div class="pose-label">Left</div>
+                <div class="slabel">Left</div>
             </div>
             <div class="pslot-wrap">
                 <div class="pslot" id="ps2">3</div>
-                <div class="pose-label">Right</div>
+                <div class="slabel">Right</div>
             </div>
             <div class="pslot-wrap">
                 <div class="pslot" id="ps3">4</div>
-                <div class="pose-label">Up</div>
+                <div class="slabel">Up</div>
             </div>
             <div class="pslot-wrap">
                 <div class="pslot" id="ps4">5</div>
-                <div class="pose-label">Down</div>
+                <div class="slabel">Down</div>
             </div>
         </div>
+    </div>
 
-        <!-- Name form (slides up after all poses) -->
-        <div class="name-panel" id="namePanel">
-            <div class="name-panel-inner">
-                <div>
-                    <div class="capture-done-title">✅ All 5 Poses Captured!</div>
-                    <div class="capture-done-sub">Your face is ready. Enter your name to register.</div>
-                </div>
-                <div class="thumb-row" id="thumbRow"></div>
-                <div>
-                    <label class="form-lbl" for="nameInp">Full Name</label>
-                    <input class="form-inp" id="nameInp" type="text" placeholder="e.g. Sampath" autocomplete="name"
-                        inputmode="text" />
-                </div>
-                <div class="prog-wrap" id="progWrap">
-                    <div class="prog-lbl" id="progLbl">Processing…</div>
-                    <div class="prog-bg">
-                        <div class="prog-bar" id="progBar"></div>
-                    </div>
-                </div>
-                <button class="btn-reg" id="regBtn" onclick="submitReg()">✅ Register Face</button>
-                <button class="btn-retry" onclick="retryCapture()">↩ Retake Photos</button>
+    <!-- ── SCREEN 3: Name Form ── -->
+    <div class="screen" id="scForm">
+        <div class="form-scroll">
+            <div class="form-top">
+                <div class="form-emoji">✅</div>
+                <div class="form-title">All 5 Poses Captured!</div>
+                <div class="form-sub">Your face is ready. Enter your details below to complete registration.</div>
             </div>
-        </div>
-
-        <!-- Success screen -->
-        <div class="success-screen" id="successScr">
-            <div class="success-ring">✓</div>
-            <div class="success-title" id="succTitle">Registered!</div>
-            <div class="success-sub" id="succSub"></div>
-            <button class="btn-another" onclick="startOver()">+ Register Another Person</button>
-        </div>
-
-        <!-- Camera denied panel -->
-        <div class="denied-panel" id="deniedPanel">
-            <div class="denied-icon">📷</div>
-            <div class="denied-title">Camera Access Denied</div>
-            <div class="denied-msg" id="deniedMsg">
-                Please allow camera access in your browser settings and reload the page.
+            <div class="thumb-grid" id="thumbGrid"></div>
+            <div class="fld">
+                <label for="nameInp">Full Name</label>
+                <input id="nameInp" type="text" placeholder="e.g. Sampath Kumar" autocomplete="name" inputmode="text" />
             </div>
+            <div class="prog-wrap" id="progWrap" style="display:none">
+                <div class="prog-lbl" id="progLbl">Processing…</div>
+                <div class="prog-bg">
+                    <div class="prog-bar" id="progBar"></div>
+                </div>
+            </div>
+            <button class="btn-submit" id="btnSubmit" onclick="submitReg()">Register Face</button>
+            <button class="btn-retake" onclick="retake()">↩ Retake Photos</button>
         </div>
+    </div>
 
+    <!-- ── SCREEN 4: Success ── -->
+    <div class="screen" id="scSuccess">
+        <div class="succ-anim">✓</div>
+        <div class="succ-title" id="succTitle">Registered!</div>
+        <div class="succ-sub" id="succSub">Your face has been enrolled successfully.</div>
+        <button class="btn-again" onclick="startOver()">+ Register Another Person</button>
+    </div>
+
+    <!-- ── SCREEN 5: Error ── -->
+    <div class="screen" id="scError">
+        <div class="err-icon" id="errIcon">📷</div>
+        <div class="err-title" id="errTitle">Camera Access Denied</div>
+        <div class="err-msg" id="errMsg">Please allow camera access in your browser settings and reload.</div>
+        <button class="btn-reload" onclick="location.reload()">🔄 Try Again</button>
     </div>
 
     <canvas id="canvas"></canvas>
     <div class="toast" id="toast"></div>
 
     <script>
-        // ── Poses ──────────────────────────────────────────────────────────────────
+        // ── Pose definitions ───────────────────────────────────────────────────────
         const POSES = [
-            { key: 'center', icon: '😊', dir: 'center', text: 'Face Forward', sub: 'Look straight at the camera' },
-            { key: 'left', icon: '⬅️', dir: 'left', text: 'Turn Left', sub: 'Slowly turn your head to the left' },
-            { key: 'right', icon: '➡️', dir: 'right', text: 'Turn Right', sub: 'Slowly turn your head to the right' },
-            { key: 'up', icon: '⬆️', dir: 'up', text: 'Look Up', sub: 'Tilt your head slightly upward' },
-            { key: 'down', icon: '⬇️', dir: 'down', text: 'Look Down', sub: 'Tilt your head slightly downward' },
+            { key: 'center', emoji: '😊', cls: '', title: 'Face Forward', sub: 'Look straight at the camera' },
+            { key: 'left', emoji: '⬅️', cls: 'bounce-left', title: 'Turn Left', sub: 'Slowly turn your head to the left' },
+            { key: 'right', emoji: '➡️', cls: 'bounce-right', title: 'Turn Right', sub: 'Slowly turn your head to the right' },
+            { key: 'up', emoji: '⬆️', cls: 'bounce-up', title: 'Look Up', sub: 'Tilt your head slightly upward' },
+            { key: 'down', emoji: '⬇️', cls: 'bounce-down', title: 'Look Down', sub: 'Tilt your head slightly downward' },
         ];
-        const COUNTDOWN_S = 3;
-        const POSE_PAUSE = 1200; // ms to read instruction
+        const COUNTDOWN = 3;
+        const FACE_HOLD_MS = 800;   // ms face must be detected before countdown starts
 
         let stream = null;
         let capturedPhotos = [];
         let captureActive = false;
+        let faceDetector = null;
+        let faceDetectionLoop = null;
+        let facePresentSince = null;
 
-        function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-        // ── Camera ─────────────────────────────────────────────────────────────────
-        async function startCamera() {
+        // ── Screen manager ─────────────────────────────────────────────────────────
+        function show(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        // ── Camera permission & start ──────────────────────────────────────────────
+        async function requestCamera() {
+            const btn = document.getElementById('btnAllow');
+            btn.textContent = 'Opening camera…';
+            btn.disabled = true;
             try {
                 stream = await navigator.mediaDevices.getUserMedia({
                     video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 960 } },
@@ -903,83 +1100,123 @@
                 const vid = document.getElementById('vid');
                 vid.srcObject = stream;
                 await vid.play();
-                setTimeout(runCapture, 800);
+
+                // Init FaceDetector if available
+                if ('FaceDetector' in window) {
+                    try { faceDetector = new FaceDetector({ fastMode: true, maxDetectedFaces: 1 }); } catch (_) { }
+                }
+
+                show('scCamera');
+                await sleep(600);
+                runCapture();
             } catch (err) {
-                console.error('Camera error:', err);
-                const panel = document.getElementById('deniedPanel');
-                document.getElementById('deniedMsg').textContent =
-                    err.name === 'NotAllowedError'
-                        ? 'Camera permission denied. Allow access in browser settings and reload.'
-                        : 'Camera unavailable: ' + err.message;
-                panel.classList.add('visible');
+                let icon = '📷', title = 'Camera Error', msg = err.message;
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    icon = '🔒'; title = 'HTTPS Required';
+                    msg = 'Camera access requires a secure HTTPS connection. Please open this page over HTTPS.';
+                } else if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                    icon = '🚫'; title = 'Permission Denied';
+                    msg = 'Camera permission was denied. Tap the camera icon in your browser\'s address bar and allow access, then try again.';
+                } else if (err.name === 'NotFoundError') {
+                    icon = '🔍'; title = 'No Camera Found';
+                    msg = 'No camera was detected on this device.';
+                }
+                document.getElementById('errIcon').textContent = icon;
+                document.getElementById('errTitle').textContent = title;
+                document.getElementById('errMsg').textContent = msg;
+                show('scError');
             }
         }
 
-        // ── Main capture loop ──────────────────────────────────────────────────────
+        // ── Face detection helpers ─────────────────────────────────────────────────
+        async function detectFace() {
+            if (!faceDetector) return true; // assume face present if no detector
+            const vid = document.getElementById('vid');
+            if (vid.readyState < 2) return false;
+            try {
+                const faces = await faceDetector.detect(vid);
+                return faces.length > 0;
+            } catch (_) { return true; }
+        }
+
+        function updateFaceStatus(detected) {
+            const el = document.getElementById('faceStatus');
+            const txt = document.getElementById('faceStatusText');
+            el.className = 'face-status ' + (detected ? 'detected' : 'no-face');
+            txt.textContent = detected ? 'Face detected ✓' : 'Position your face in the oval';
+            const oval = document.getElementById('ovalPath');
+            oval.style.stroke = detected ? 'rgba(0,184,148,.9)' : 'rgba(108,92,231,.7)';
+        }
+
+        // ── Main capture flow ──────────────────────────────────────────────────────
         async function runCapture() {
             captureActive = true;
             capturedPhotos = [];
-
-            for (let i = 0; i < POSES.length; i++) {
-                await runPose(i);
-            }
-
-            // All poses done — show name panel
-            document.getElementById('namePanel').classList.add('open');
-            document.getElementById('nameInp').focus();
+            for (let i = 0; i < POSES.length; i++) await runPose(i);
+            // All poses done
+            showFormScreen();
         }
 
         async function runPose(idx) {
             const pose = POSES[idx];
-
-            // Update instruction
-            const arrow = document.getElementById('dirArrow');
-            arrow.textContent = pose.icon;
-            arrow.setAttribute('data-dir', pose.dir);
-            document.getElementById('dirText').textContent = pose.text;
-            document.getElementById('dirSub').textContent = pose.sub;
-
-            // Update dots
+            // Update UI
+            const arrow = document.getElementById('poseArrow');
+            arrow.textContent = pose.emoji;
+            arrow.className = 'pose-arrow ' + pose.cls;
+            document.getElementById('poseTitle').textContent = pose.title;
+            document.getElementById('poseSub').textContent = pose.sub;
+            document.getElementById('stepBadge').textContent = `Pose ${idx + 1} of 5`;
             updateDots(idx);
+            updateStrip(idx, null);
+            document.getElementById('ringWrap').classList.remove('visible');
 
-            // Highlight strip slot
-            for (let i = 0; i < 5; i++) {
-                document.getElementById(`ps${i}`).classList.toggle('active-s', i === idx);
-            }
-
-            await sleep(POSE_PAUSE);
+            // Wait for face to appear and hold
+            await waitForFace();
 
             // Countdown
-            await runCountdown(COUNTDOWN_S, idx);
+            document.getElementById('poseSub').textContent = 'Hold still…';
+            document.getElementById('ringWrap').classList.add('visible');
+            await runCountdown(COUNTDOWN);
 
             // Flash + capture
             const flash = document.getElementById('flash');
             flash.classList.add('go');
             await sleep(120);
             flash.classList.remove('go');
-
             const b64 = captureFrame();
             capturedPhotos.push(b64);
 
-            // Fill strip slot
-            const slot = document.getElementById(`ps${idx}`);
-            slot.classList.remove('active-s');
-            slot.classList.add('filled');
-            slot.innerHTML = `<img src="${b64}" alt="Pose ${idx + 1}"/><div class="ck">✓</div>`;
-
-            // Update dot to done
-            document.getElementById(`pd${idx}`).classList.replace('active', 'done');
-
-            await sleep(350);
+            // Fill slot
+            updateStrip(idx, b64);
+            document.getElementById(`d${idx}`).className = 'dot done';
+            updateFaceStatus(false);
+            await sleep(400);
         }
 
-        async function runCountdown(secs, poseIdx) {
+        async function waitForFace() {
+            if (!faceDetector) return; // skip if no detector — trust the user
+            facePresentSince = null;
+            return new Promise(resolve => {
+                const check = async () => {
+                    if (!captureActive) { resolve(); return; }
+                    const seen = await detectFace();
+                    updateFaceStatus(seen);
+                    if (seen) {
+                        if (!facePresentSince) facePresentSince = Date.now();
+                        if (Date.now() - facePresentSince >= FACE_HOLD_MS) { resolve(); return; }
+                    } else {
+                        facePresentSince = null;
+                    }
+                    faceDetectionLoop = setTimeout(check, 150);
+                };
+                check();
+            });
+        }
+
+        async function runCountdown(secs) {
             const ring = document.getElementById('ringFg');
             const num = document.getElementById('ringNum');
-            const circ = 2 * Math.PI * 36; // ~226
-
-            document.getElementById('dirSub').textContent = 'Hold still…';
-
+            const circ = 2 * Math.PI * 34; // ~213
             for (let s = secs; s > 0; s--) {
                 num.textContent = s;
                 ring.style.transition = 'none';
@@ -990,19 +1227,35 @@
                 await sleep(1000);
             }
             num.textContent = '📸';
-            document.getElementById('oval').classList.add('green');
-            await sleep(200);
-            document.getElementById('oval').classList.remove('green');
             ring.style.transition = 'none';
             ring.style.strokeDashoffset = 0;
         }
 
-        function updateDots(activeIdx) {
+        function updateDots(active) {
             for (let i = 0; i < 5; i++) {
-                const d = document.getElementById(`pd${i}`);
-                if (i < activeIdx) { d.className = 'pdot done'; }
-                else if (i === activeIdx) { d.className = 'pdot active'; }
-                else { d.className = 'pdot'; }
+                const d = document.getElementById(`d${i}`);
+                if (i < active) d.className = 'dot done';
+                else if (i === active) d.className = 'dot active';
+                else d.className = 'dot';
+            }
+        }
+
+        function updateStrip(idx, b64) {
+            for (let i = 0; i < 5; i++) {
+                const s = document.getElementById(`ps${i}`);
+                if (i < idx) { /* already filled */ }
+                else if (i === idx) {
+                    s.classList.add('cur');
+                    s.classList.remove('ok');
+                } else {
+                    s.classList.remove('cur', 'ok');
+                }
+            }
+            if (b64 !== null) {
+                const s = document.getElementById(`ps${idx}`);
+                s.classList.remove('cur'); s.classList.add('ok');
+                s.innerHTML = `<img src="${b64}" alt="p${idx}"/><div class="ck">✓</div>`;
+                if (idx + 1 < 5) document.getElementById(`ps${idx + 1}`).classList.add('cur');
             }
         }
 
@@ -1013,112 +1266,105 @@
             canvas.height = vid.videoHeight || 480;
             const ctx = canvas.getContext('2d');
             ctx.save();
-            // Un-mirror before saving (mirror was CSS only)
-            ctx.translate(canvas.width, 0);
-            ctx.scale(-1, 1);
+            ctx.translate(canvas.width, 0); ctx.scale(-1, 1);
             ctx.drawImage(vid, 0, 0);
             ctx.restore();
-            return canvas.toDataURL('image/jpeg', 0.85);
+            return canvas.toDataURL('image/jpeg', 0.88);
         }
 
-        // ── Registration ──────────────────────────────────────────────────────────
+        // ── Form screen ────────────────────────────────────────────────────────────
+        function showFormScreen() {
+            captureActive = false;
+            clearTimeout(faceDetectionLoop);
+            const grid = document.getElementById('thumbGrid');
+            grid.innerHTML = capturedPhotos.map(b => `<img src="${b}" alt=""/>`).join('');
+            show('scForm');
+            setTimeout(() => document.getElementById('nameInp').focus(), 300);
+        }
+
         async function submitReg() {
             const name = document.getElementById('nameInp').value.trim();
-            if (!name) { document.getElementById('nameInp').focus(); showToast('Enter your name', 'err'); return; }
-
-            const btn = document.getElementById('regBtn');
-            btn.disabled = true;
-            btn.textContent = '⏳ Registering…';
-
-            const progWrap = document.getElementById('progWrap');
-            const progBar = document.getElementById('progBar');
-            const progLbl = document.getElementById('progLbl');
-            progWrap.classList.add('visible');
-            progLbl.textContent = 'Sending to server…';
-            progBar.style.width = '20%';
-
-            // Show thumbnails
-            const row = document.getElementById('thumbRow');
-            row.innerHTML = capturedPhotos.map(b64 => `<img src="${b64}" alt=""/>`).join('');
-
+            if (!name) { document.getElementById('nameInp').focus(); showToast('Please enter your name', 'err'); return; }
+            const btn = document.getElementById('btnSubmit');
+            btn.disabled = true; btn.textContent = '⏳ Registering…';
+            const pw = document.getElementById('progWrap');
+            const pb = document.getElementById('progBar');
+            const pl = document.getElementById('progLbl');
+            pw.style.display = 'block'; pl.textContent = 'Sending to server…'; pb.style.width = '20%';
             try {
-                progBar.style.width = '50%';
-                progLbl.textContent = 'Extracting ArcFace embeddings…';
-
+                pb.style.width = '55%'; pl.textContent = 'Extracting ArcFace embeddings…';
                 const res = await fetch('/api/mobile_register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, images: capturedPhotos }),
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, images: capturedPhotos })
                 });
                 const data = await res.json();
-
-                progBar.style.width = '100%';
-
+                pb.style.width = '100%';
                 if (data.success) {
                     await sleep(300);
                     stopCamera();
-                    document.getElementById('successScr').classList.add('visible');
-                    document.getElementById('succTitle').textContent = `Welcome, ${name}!`;
+                    document.getElementById('succTitle').textContent = `Welcome, ${name}! 🎉`;
                     document.getElementById('succSub').textContent =
                         `${data.stored || data.samples || 0} ArcFace embedding(s) saved.` +
-                        (!data.model_ready ? '\n(Model loading — embeddings will be processed shortly)' : '');
+                        (!data.model_ready ? '\n(Model loading — will process shortly)' : '');
+                    show('scSuccess');
                 } else {
                     showToast('❌ ' + (data.error || 'Registration failed'), 'err');
-                    btn.disabled = false;
-                    btn.textContent = '✅ Register Face';
-                    progWrap.classList.remove('visible');
+                    btn.disabled = false; btn.textContent = 'Register Face';
+                    pw.style.display = 'none';
                 }
             } catch (e) {
                 showToast('Connection error — try again', 'err');
+                btn.disabled = false; btn.textContent = 'Register Face';
+                pw.style.display = 'none';
+            }
+        }
+
+        function retake() {
+            capturedPhotos = [];
+            for (let i = 0; i < 5; i++) {
+                const s = document.getElementById(`ps${i}`);
+                s.className = i === 0 ? 'pslot cur' : 'pslot';
+                s.textContent = String(i + 1);
+            }
+            updateDots(0);
+            show('scCamera');
+            captureActive = true;
+            setTimeout(runCapture, 400);
+        }
+
+        function startOver() {
+            capturedPhotos = [];
+            for (let i = 0; i < 5; i++) {
+                const s = document.getElementById(`ps${i}`);
+                s.className = i === 0 ? 'pslot cur' : 'pslot';
+                s.textContent = String(i + 1);
+            }
+            if (stream) {
+                show('scCamera');
+                captureActive = true;
+                setTimeout(runCapture, 400);
+            } else {
+                show('scWelcome');
+                const btn = document.getElementById('btnAllow');
+                btn.textContent = 'Allow Camera & Begin →';
                 btn.disabled = false;
-                btn.textContent = '✅ Register Face';
-                progWrap.classList.remove('visible');
             }
         }
 
         function stopCamera() {
+            captureActive = false;
+            clearTimeout(faceDetectionLoop);
             if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
         }
 
-        function retryCapture() {
-            capturedPhotos = [];
-            document.getElementById('namePanel').classList.remove('open');
-            document.getElementById('nameInp').value = '';
-            for (let i = 0; i < 5; i++) {
-                const s = document.getElementById(`ps${i}`);
-                s.className = 'pslot';
-                s.textContent = String(i + 1);
-            }
-            updateDots(-1);
-            setTimeout(runCapture, 500);
-        }
-
-        function startOver() {
-            document.getElementById('successScr').classList.remove('visible');
-            capturedPhotos = [];
-            document.getElementById('namePanel').classList.remove('open');
-            document.getElementById('nameInp').value = '';
-            for (let i = 0; i < 5; i++) {
-                const s = document.getElementById(`ps${i}`);
-                s.className = i === 0 ? 'pslot active-s' : 'pslot';
-                s.textContent = String(i + 1);
-            }
-            updateDots(0);
-            if (!stream) startCamera();
-            else setTimeout(runCapture, 500);
-        }
-
-        // ── Toast ─────────────────────────────────────────────────────────────────
-        let toastTm = null;
+        // ── Toast ──────────────────────────────────────────────────────────────────
+        let toastTm;
         function showToast(msg, type = '', dur = 3000) {
             const el = document.getElementById('toast');
             el.textContent = msg; el.className = `toast show ${type}`;
             clearTimeout(toastTm);
-            toastTm = setTimeout(() => { el.className = 'toast'; }, dur);
+            toastTm = setTimeout(() => el.className = 'toast', dur);
         }
-
-        // ── Boot ──────────────────────────────────────────────────────────────────
-        window.addEventListener('load', startCamera);
     </script>
 </body>
 
