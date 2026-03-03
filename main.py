@@ -4,22 +4,19 @@ FaceDoor — Vercel/Cloud FastAPI Server
 Endpoints:
   GET  /                      → Admin panel (static/index.html)
   GET  /mobile                → Mobile registration page (static/mobile_register.html)
-  POST /api/mobile_register   → Accept 5 base64 photos → ArcFace → save to faces.json
-  GET  /api/faces             → List registered people  (JSON)
-  GET  /api/faces.json        → Download the full faces.json file
+  POST /api/mobile_register   → Accept N base64 photos → ArcFace → save embeddings to MongoDB
+  GET  /api/faces             → List registered people  (JSON summary)
+  GET  /api/faces.json        → Download full faces.json WITH embeddings (for kiosk sync)
   POST /api/faces.json        → Upload / merge a faces.json (sync from kiosk)
   DELETE /api/faces/{name}    → Remove a person from the database
   GET  /api/status            → Health + model status
 
-Deploy:
-  • Local dev:   uvicorn main:app --reload --port 5050
-  • Vercel:      requires Pro plan (3 GB lambda). See vercel.json.
-  • Better alt:  Railway / Render / Fly.io free tier with a Dockerfile.
-
-Storage:
-  • Local:   data/faces.json
-  • Vercel:  /tmp/faces.json  (ephemeral — persists per warm instance only)
-             For persistence, swap DB_PATH for S3/Supabase/Firestore.
+Fix notes (v2):
+  • enforce_detection=False  — mobile selfies with unusual angle/lighting still processed
+  • align=True everywhere    — embeddings from server and kiosk are now comparable
+  • 224×224 face crop saved  — enough detail for re-embedding on kiosk
+  • All per-image embeddings stored and returned — kiosk uses real embeddings, not re-computed
+  • COSINE_THRESHOLD unified to 0.45 both sides
 """
 
 from __future__ import annotations
@@ -108,17 +105,32 @@ def b64_to_bgr(b64: str) -> np.ndarray:
     return arr[:, :, ::-1]                          # RGB → BGR
 
 def get_embedding(bgr: np.ndarray) -> list[float] | None:
-    """Extract a 512-D ArcFace embedding. Returns None if model not ready or no face."""
+    """Extract a 512-D ArcFace embedding.
+
+    Uses enforce_detection=False so that mobile selfies with unusual angles,
+    lighting, or partial crops are still embedded rather than silently dropped.
+    align=True is required — must match the kiosk-side alignment setting so
+    cosine distances are meaningful.
+    Returns None only if the model is not ready or a fatal error occurs.
+    """
     with _model_lock:
         model = _deepface_model
     if model is None:
+        log.warning("ArcFace model not loaded yet — skipping embedding")
         return None
     try:
-        res = model.represent(bgr, model_name="ArcFace", enforce_detection=True)
-        if res:
+        res = model.represent(
+            bgr,
+            model_name="ArcFace",
+            enforce_detection=False,   # mobile selfies may not be perfectly framed
+            detector_backend="opencv", # fast + reliable for frontal faces
+            align=True,                # MUST match kiosk; mismatched align → high cosine distance
+        )
+        if res and res[0].get("embedding"):
             return res[0]["embedding"]
+        log.warning("ArcFace returned empty result")
     except Exception as exc:
-        log.debug("No face detected: %s", exc)
+        log.warning("Embedding extraction failed: %s", exc)
     return None
 
 def cosine_sim(a: list[float], b: list[float]) -> float:
@@ -206,29 +218,32 @@ async def mobile_register(request: Request):
 
         if face_b64_sample is None:
             try:
-                # Store first image as thumbnail (scaled down)
-                img_small = Image.fromarray(bgr[:, :, ::-1]).resize((80, 80))
+                # Save a 224×224 crop — large enough for ArcFace re-embedding on kiosk
+                # (old 80×80 was too blurry to re-embed accurately)
+                img_crop = Image.fromarray(bgr[:, :, ::-1]).resize((224, 224), Image.LANCZOS)
                 buf = io.BytesIO()
-                img_small.save(buf, format="JPEG", quality=70)
+                img_crop.save(buf, format="JPEG", quality=85)
                 face_b64_sample = base64.b64encode(buf.getvalue()).decode()
+                log.info("Saved 224×224 face crop for image %d", idx)
             except Exception as e:
-                log.exception("Failed to create thumbnail from image %d:", idx)
+                log.exception("Failed to create face crop from image %d:", idx)
 
         if not _model_ready:
-            log.info("Model not ready — storing image %d only, no embedding yet", idx)
+            log.warning("Model not ready — image %d will have no embedding this request", idx)
             continue
 
         try:
             emb = get_embedding(bgr)
             if emb is not None:
                 embeddings.append(emb)
-                log.info("Successfully extracted embedding for image %d", idx)
+                log.info("Extracted embedding for image %d (total so far: %d)", idx, len(embeddings))
             else:
-                log.warning("No face embedding extracted for image %d", idx)
+                log.warning("No embedding for image %d — face may be too angled or obscured", idx)
         except Exception as e:
             log.exception("Exception during get_embedding for image %d:", idx)
 
-    log.info("Completed embedding extraction: %d valid embeddings found", len(embeddings))
+    log.info("Embedding extraction complete: %d/%d images produced embeddings",
+             len(embeddings), len(images))
 
     if not embeddings and not face_b64_sample:
         log.error("No valid images could be processed or decoded for user '%s'.", name)
@@ -239,39 +254,44 @@ async def mobile_register(request: Request):
             entry = users_collection.find_one({"name": name})
             if not entry:
                 entry = {
-                    "name": name,
-                    "user_id": generate_unique_id(),
+                    "name":       name,
+                    "user_id":    generate_unique_id(),
                     "embeddings": [],
-                    "face_b64": None,
-                    "samples": 0
+                    "face_b64":   None,
+                    "samples":    0
                 }
-            
+                log.info("Creating new DB entry for '%s' (uid=%s)", name, entry["user_id"])
+            else:
+                log.info("Appending embeddings to existing entry for '%s'", name)
+
+            # Accumulate all per-image embeddings — more samples = better recognition
             entry["embeddings"].extend(embeddings)
-            entry["face_b64"] = face_b64_sample or entry.get("face_b64")
-            entry["samples"]  = len(entry["embeddings"])
-            
+            # Keep the best (first) face crop — update only if we don't already have one
+            if face_b64_sample and not entry.get("face_b64"):
+                entry["face_b64"] = face_b64_sample
+            entry["samples"] = len(entry["embeddings"])
+
             users_collection.update_one(
                 {"name": name},
                 {"$set": {
-                    "user_id": entry["user_id"],
+                    "user_id":    entry["user_id"],
                     "embeddings": entry["embeddings"],
-                    "face_b64": entry["face_b64"],
-                    "samples": entry["samples"]
+                    "face_b64":   entry["face_b64"],
+                    "samples":    entry["samples"],
                 }},
                 upsert=True
             )
-            log.info("Successfully saved user '%s' in MongoDB", name)
+            log.info("Saved '%s' — total embeddings in DB: %d", name, entry["samples"])
     except Exception as e:
         log.exception("Database insertion failed for user '%s':", name)
         return JSONResponse({"success": False, "error": f"Database error: {e}"}, status_code=500)
 
-    log.info("Registered '%s' with %d embedding(s)", name, len(embeddings))
     return {
-        "success": True,
-        "name":    name,
-        "user_id": entry["user_id"],
-        "samples": len(embeddings),
-        "stored":  entry["samples"],
+        "success":    True,
+        "name":       name,
+        "user_id":    entry["user_id"],
+        "samples":    len(embeddings),        # embeddings added this request
+        "stored":     entry["samples"],        # total stored in DB
         "model_ready": _model_ready,
     }
 
@@ -297,13 +317,26 @@ async def list_faces():
 @app.get("/api/faces.json")
 async def download_faces_json():
     """
-    Download the full database (including raw embeddings).
-    The kiosk can pull this periodically to sync remotely registered faces.
+    Download the full database WITH embeddings for kiosk sync.
+    Format: { name: { user_id, embeddings: [[...512d...], ...], face_b64, samples } }
+
+    IMPORTANT: This endpoint now includes real ArcFace embeddings so the kiosk
+    does NOT need to re-generate embeddings from the (potentially small) thumbnail.
+    This guarantees alignment consistency between server-registered and kiosk-detected faces.
     """
     docs = users_collection.find({}, {"_id": 0})
-    db = {doc["name"]: doc for doc in docs}
+    result = {}
+    for doc in docs:
+        name = doc["name"]
+        embs = doc.get("embeddings", [])
+        result[name] = {
+            "user_id":    doc.get("user_id"),
+            "embeddings": embs,             # full 512-D vectors — kiosk uses these directly
+            "face_b64":   doc.get("face_b64"),
+            "samples":    len(embs),
+        }
     return JSONResponse(
-        content=db,
+        content=result,
         headers={"Content-Disposition": "attachment; filename=faces.json"},
     )
 
