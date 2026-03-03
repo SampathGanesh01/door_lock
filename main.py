@@ -123,7 +123,7 @@ def get_embedding(bgr: np.ndarray) -> list[float] | None:
             bgr,
             model_name="ArcFace",
             enforce_detection=False,   # mobile selfies may not be perfectly framed
-            detector_backend="opencv", # fast + reliable for frontal faces
+            detector_backend="retinaface", # matches kiosk for exact crop alignment
             align=True,                # MUST match kiosk; mismatched align → high cosine distance
         )
         if res and res[0].get("embedding"):
