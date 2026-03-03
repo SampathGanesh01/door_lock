@@ -31,8 +31,11 @@ import logging
 import os
 import threading
 import time
+import random
 from pathlib import Path
 from typing import Any
+import pymongo
+from config import MONGO_URI, DATABASE_NAME, COLLECTION_NAME
 
 import numpy as np
 from fastapi import FastAPI, HTTPException, Request
@@ -49,13 +52,18 @@ log = logging.getLogger("facedoor")
 BASE_DIR  = Path(__file__).parent
 STATIC    = BASE_DIR / "static"
 
-# On Vercel /tmp is the only writable dir; locally use data/
-if os.getenv("VERCEL"):
-    DB_PATH = Path("/tmp/faces.json")
-else:
-    DB_PATH = BASE_DIR / "data" / "faces.json"
+# ── MongoDB Client ─────────────────────────────────────────────────────────────
+mongo_client = pymongo.MongoClient(MONGO_URI)
+db = mongo_client[DATABASE_NAME]
+users_collection = db[COLLECTION_NAME]
 
-DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+def generate_unique_id() -> str:
+    """Generate a unique 4-digit ID."""
+    while True:
+        uid = str(random.randint(1000, 9999))
+        if not users_collection.find_one({"user_id": uid}):
+            return uid
+
 
 # ── ArcFace model (lazy, loaded in background) ─────────────────────────────────
 _deepface_model = None
@@ -79,19 +87,17 @@ def _load_model_bg():
 
 threading.Thread(target=_load_model_bg, daemon=True).start()
 
-# ── faces.json helpers ─────────────────────────────────────────────────────────
+# ── DB helpers ─────────────────────────────────────────────────────────────────
 _db_lock = threading.Lock()
 
 def load_db() -> dict[str, Any]:
-    if DB_PATH.exists():
-        try:
-            return json.loads(DB_PATH.read_text())
-        except Exception:
-            pass
-    return {}
+    """Helper to maintain dict format for /api/faces.json compatibility."""
+    docs = users_collection.find()
+    result = {}
+    for doc in docs:
+        result[doc["name"]] = doc
+    return result
 
-def save_db(db: dict[str, Any]):
-    DB_PATH.write_text(json.dumps(db, indent=2))
 
 # ── ArcFace helpers ────────────────────────────────────────────────────────────
 def b64_to_bgr(b64: str) -> np.ndarray:
@@ -155,11 +161,10 @@ async def mobile_page():
 
 @app.get("/api/status")
 async def status():
-    db = load_db()
     return {
         "ok":          True,
         "model_ready": _model_ready,
-        "registered":  len(db),
+        "registered":  users_collection.count_documents({}),
     }
 
 # ── API: mobile registration ───────────────────────────────────────────────────
@@ -208,20 +213,38 @@ async def mobile_register(request: Request):
         return JSONResponse({"success": False, "error": "No valid images received"})
 
     with _db_lock:
-        db = load_db()
-        entry = db.get(name, {"embeddings": [], "face_b64": None, "samples": 0})
+        entry = users_collection.find_one({"name": name})
+        if not entry:
+            entry = {
+                "name": name,
+                "user_id": generate_unique_id(),
+                "embeddings": [],
+                "face_b64": None,
+                "samples": 0
+            }
+        
         entry["embeddings"].extend(embeddings)
         entry["face_b64"] = face_b64_sample or entry.get("face_b64")
         entry["samples"]  = len(entry["embeddings"])
-        db[name] = entry
-        save_db(db)
+        
+        users_collection.update_one(
+            {"name": name},
+            {"$set": {
+                "user_id": entry["user_id"],
+                "embeddings": entry["embeddings"],
+                "face_b64": entry["face_b64"],
+                "samples": entry["samples"]
+            }},
+            upsert=True
+        )
 
     log.info("Registered '%s' with %d embedding(s)", name, len(embeddings))
     return {
         "success": True,
         "name":    name,
+        "user_id": entry["user_id"],
         "samples": len(embeddings),
-        "stored":  len(db[name]["embeddings"]),
+        "stored":  entry["samples"],
         "model_ready": _model_ready,
     }
 
@@ -230,14 +253,15 @@ async def mobile_register(request: Request):
 @app.get("/api/faces")
 async def list_faces():
     """Return a summary list of all registered people."""
-    db = load_db()
+    docs = users_collection.find({}, {"_id": 0})
     faces = [
         {
-            "name":     name,
-            "samples":  entry.get("samples", len(entry.get("embeddings", []))),
-            "face_b64": entry.get("face_b64"),
+            "name":     doc["name"],
+            "user_id":  doc.get("user_id"),
+            "samples":  doc.get("samples", len(doc.get("embeddings", []))),
+            "face_b64": doc.get("face_b64"),
         }
-        for name, entry in db.items()
+        for doc in docs
     ]
     return {"faces": faces, "total": len(faces)}
 
@@ -246,10 +270,11 @@ async def list_faces():
 @app.get("/api/faces.json")
 async def download_faces_json():
     """
-    Download the full faces.json database (including raw embeddings).
+    Download the full database (including raw embeddings).
     The kiosk can pull this periodically to sync remotely registered faces.
     """
-    db = load_db()
+    docs = users_collection.find({}, {"_id": 0})
+    db = {doc["name"]: doc for doc in docs}
     return JSONResponse(
         content=db,
         headers={"Content-Disposition": "attachment; filename=faces.json"},
@@ -267,13 +292,18 @@ async def upload_faces_json(request: Request):
     if not isinstance(body, dict):
         raise HTTPException(status_code=422, detail="Expected a JSON object")
     with _db_lock:
-        db = load_db()
         merged = 0
         for name, entry in body.items():
-            db[name] = entry
+            if "user_id" not in entry:
+                entry["user_id"] = generate_unique_id()
+            users_collection.update_one(
+                {"name": name},
+                {"$set": entry},
+                upsert=True
+            )
             merged += 1
-        save_db(db)
-    return {"success": True, "merged": merged, "total": len(db)}
+    total = users_collection.count_documents({})
+    return {"success": True, "merged": merged, "total": total}
 
 # ── API: delete face ───────────────────────────────────────────────────────────
 
@@ -281,12 +311,11 @@ async def upload_faces_json(request: Request):
 async def delete_face(name: str):
     """Remove a person from the database."""
     with _db_lock:
-        db = load_db()
-        if name not in db:
+        result = users_collection.delete_one({"name": name})
+        if result.deleted_count == 0:
             raise HTTPException(status_code=404, detail=f"'{name}' not found")
-        del db[name]
-        save_db(db)
-    return {"success": True, "deleted": name, "remaining": len(db)}
+    remaining = users_collection.count_documents({})
+    return {"success": True, "deleted": name, "remaining": remaining}
 
 # ── Dev entry-point ────────────────────────────────────────────────────────────
 

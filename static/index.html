@@ -740,11 +740,12 @@
                     ? `<img class="face-thumb" src="data:image/jpeg;base64,${f.face_b64}" alt="${f.name}"/>`
                     : `<div class="face-avatar">${f.name[0].toUpperCase()}</div>`;
                 const safe = f.name.replace(/'/g, "\\'");
+                const uidHtml = f.user_id ? `<span style="color:var(--muted);font-weight:normal;margin-left:6px;font-size:11px">#${f.user_id}</span>` : '';
                 return `
         <div class="face-item">
           ${thumb}
           <div class="face-info">
-            <div class="face-name">${f.name}</div>
+            <div class="face-name">${f.name}${uidHtml}</div>
             <div class="face-samples">${f.samples} ArcFace embedding${f.samples !== 1 ? 's' : ''}</div>
           </div>
           <button class="del-btn" onclick="deleteFace('${safe}')" title="Remove">🗑️</button>
