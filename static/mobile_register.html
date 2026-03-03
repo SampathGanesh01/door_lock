@@ -1262,14 +1262,26 @@
         function captureFrame() {
             const vid = document.getElementById('vid');
             const canvas = document.getElementById('canvas');
-            canvas.width = vid.videoWidth || 640;
-            canvas.height = vid.videoHeight || 480;
+
+            // Downscale to avoid 413 Payload Too Large errors
+            const MAX_DIM = 480;
+            let vw = vid.videoWidth || 640;
+            let vh = vid.videoHeight || 480;
+            if (vw > MAX_DIM || vh > MAX_DIM) {
+                const ratio = Math.min(MAX_DIM / vw, MAX_DIM / vh);
+                vw = Math.round(vw * ratio);
+                vh = Math.round(vh * ratio);
+            }
+
+            canvas.width = vw;
+            canvas.height = vh;
             const ctx = canvas.getContext('2d');
             ctx.save();
             ctx.translate(canvas.width, 0); ctx.scale(-1, 1);
-            ctx.drawImage(vid, 0, 0);
+            ctx.drawImage(vid, 0, 0, vw, vh);
             ctx.restore();
-            return canvas.toDataURL('image/jpeg', 0.88);
+            // Output standard JPEG with lower compression to save bandwidth
+            return canvas.toDataURL('image/jpeg', 0.78);
         }
 
         // ── Form screen ────────────────────────────────────────────────────────────
@@ -1293,10 +1305,21 @@
             pw.style.display = 'block'; pl.textContent = 'Sending to server…'; pb.style.width = '20%';
             try {
                 pb.style.width = '55%'; pl.textContent = 'Extracting ArcFace embeddings…';
+
+                const payload = JSON.stringify({ name, images: capturedPhotos });
+                console.log(`Payload size: ${(payload.length / 1024 / 1024).toFixed(3)} MB`);
+
                 const res = await fetch('/api/mobile_register', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, images: capturedPhotos })
+                    body: payload
                 });
+
+                if (!res.ok) {
+                    const errText = await res.text();
+                    console.error(`HTTP API Error ${res.status}:`, errText);
+                    throw new Error(`Server returned ${res.status}`);
+                }
+
                 const data = await res.json();
                 pb.style.width = '100%';
                 if (data.success) {
@@ -1308,12 +1331,14 @@
                         (!data.model_ready ? '\n(Model loading — will process shortly)' : '');
                     show('scSuccess');
                 } else {
+                    console.error("API returned failure:", data);
                     showToast('❌ ' + (data.error || 'Registration failed'), 'err');
                     btn.disabled = false; btn.textContent = 'Register Face';
                     pw.style.display = 'none';
                 }
             } catch (e) {
-                showToast('Connection error — try again', 'err');
+                console.error("Submit Exception:", e);
+                showToast(`Request failed: ${e.message}`, 'err', 5000);
                 btn.disabled = false; btn.textContent = 'Register Face';
                 pw.style.display = 'none';
             }
