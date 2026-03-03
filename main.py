@@ -176,67 +176,94 @@ async def mobile_register(request: Request):
     Extracts ArcFace embeddings, stores in faces.json.
     Returns { "success": bool, "samples": int, "name": str }
     """
-    body: dict = await request.json()
+    try:
+        body: dict = await request.json()
+    except Exception as e:
+        log.exception("Failed to parse JSON body:")
+        return JSONResponse({"success": False, "error": f"JSON parse error: {e}"}, status_code=400)
+
     name:   str  = (body.get("name") or "").strip()
     images: list = body.get("images") or []
 
+    log.info("mobile_register invoked for user '%s' with %d image(s).", name, len(images))
+
     if not name:
+        log.error("Validation failed: Name is empty.")
         raise HTTPException(status_code=422, detail="name is required")
     if not images:
+        log.error("Validation failed: No images provided.")
         raise HTTPException(status_code=422, detail="at least one image is required")
 
     embeddings: list[list[float]] = []
     face_b64_sample: str | None   = None
 
-    for b64 in images:
+    for idx, b64 in enumerate(images):
         try:
             bgr = b64_to_bgr(b64)
-        except Exception:
+        except Exception as e:
+            log.exception("Error decoding image %d from Base64:", idx)
             continue
 
         if face_b64_sample is None:
-            # Store first image as thumbnail (scaled down)
-            img_small = Image.fromarray(bgr[:, :, ::-1]).resize((80, 80))
-            buf = io.BytesIO()
-            img_small.save(buf, format="JPEG", quality=70)
-            face_b64_sample = base64.b64encode(buf.getvalue()).decode()
+            try:
+                # Store first image as thumbnail (scaled down)
+                img_small = Image.fromarray(bgr[:, :, ::-1]).resize((80, 80))
+                buf = io.BytesIO()
+                img_small.save(buf, format="JPEG", quality=70)
+                face_b64_sample = base64.b64encode(buf.getvalue()).decode()
+            except Exception as e:
+                log.exception("Failed to create thumbnail from image %d:", idx)
 
         if not _model_ready:
-            log.info("Model not ready — storing image only, no embedding yet")
+            log.info("Model not ready — storing image %d only, no embedding yet", idx)
             continue
 
-        emb = get_embedding(bgr)
-        if emb is not None:
-            embeddings.append(emb)
+        try:
+            emb = get_embedding(bgr)
+            if emb is not None:
+                embeddings.append(emb)
+                log.info("Successfully extracted embedding for image %d", idx)
+            else:
+                log.warning("No face embedding extracted for image %d", idx)
+        except Exception as e:
+            log.exception("Exception during get_embedding for image %d:", idx)
+
+    log.info("Completed embedding extraction: %d valid embeddings found", len(embeddings))
 
     if not embeddings and not face_b64_sample:
+        log.error("No valid images could be processed or decoded for user '%s'.", name)
         return JSONResponse({"success": False, "error": "No valid images received"})
 
-    with _db_lock:
-        entry = users_collection.find_one({"name": name})
-        if not entry:
-            entry = {
-                "name": name,
-                "user_id": generate_unique_id(),
-                "embeddings": [],
-                "face_b64": None,
-                "samples": 0
-            }
-        
-        entry["embeddings"].extend(embeddings)
-        entry["face_b64"] = face_b64_sample or entry.get("face_b64")
-        entry["samples"]  = len(entry["embeddings"])
-        
-        users_collection.update_one(
-            {"name": name},
-            {"$set": {
-                "user_id": entry["user_id"],
-                "embeddings": entry["embeddings"],
-                "face_b64": entry["face_b64"],
-                "samples": entry["samples"]
-            }},
-            upsert=True
-        )
+    try:
+        with _db_lock:
+            entry = users_collection.find_one({"name": name})
+            if not entry:
+                entry = {
+                    "name": name,
+                    "user_id": generate_unique_id(),
+                    "embeddings": [],
+                    "face_b64": None,
+                    "samples": 0
+                }
+            
+            entry["embeddings"].extend(embeddings)
+            entry["face_b64"] = face_b64_sample or entry.get("face_b64")
+            entry["samples"]  = len(entry["embeddings"])
+            
+            users_collection.update_one(
+                {"name": name},
+                {"$set": {
+                    "user_id": entry["user_id"],
+                    "embeddings": entry["embeddings"],
+                    "face_b64": entry["face_b64"],
+                    "samples": entry["samples"]
+                }},
+                upsert=True
+            )
+            log.info("Successfully saved user '%s' in MongoDB", name)
+    except Exception as e:
+        log.exception("Database insertion failed for user '%s':", name)
+        return JSONResponse({"success": False, "error": f"Database error: {e}"}, status_code=500)
 
     log.info("Registered '%s' with %d embedding(s)", name, len(embeddings))
     return {
