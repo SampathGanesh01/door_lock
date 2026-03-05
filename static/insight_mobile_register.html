@@ -808,6 +808,78 @@
       display: none;
     }
 
+    /* ── Welcome — two-path option cards ── */
+    .wel-options {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .wel-option-card {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: rgba(108, 92, 231, .1);
+      border: 1.5px solid var(--border);
+      border-radius: 18px;
+      padding: 16px 18px;
+      cursor: pointer;
+      text-align: left;
+      transition: background .2s, border-color .2s, transform .15s;
+      font-family: 'Inter', sans-serif;
+      color: var(--text);
+      outline: none;
+      -webkit-appearance: none;
+    }
+
+    .wel-option-card:active {
+      transform: scale(.98);
+      background: rgba(108, 92, 231, .2);
+    }
+
+    .wel-option-card.upload-card {
+      border-color: rgba(0, 206, 201, .25);
+    }
+
+    .wel-option-card.upload-card:active {
+      background: rgba(0, 206, 201, .12);
+    }
+
+    .wel-option-card input[type="file"] {
+      display: none;
+    }
+
+    .wel-opt-icon {
+      font-size: 28px;
+      flex-shrink: 0;
+    }
+
+    .wel-opt-body {
+      flex: 1;
+    }
+
+    .wel-opt-title {
+      font-size: 14px;
+      font-weight: 800;
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .wel-opt-desc {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    .wel-opt-arrow {
+      font-size: 18px;
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+
     canvas {
       display: none;
     }
@@ -823,32 +895,34 @@
   <div class="screen active" id="scWelcome">
     <div class="wel-logo">🪪</div>
     <div class="wel-title">Register Your Face</div>
-    <div class="wel-sub">One quick photo for secure door access at ASBL GYM</div>
-    <div class="wel-steps">
-      <div class="step-row">
-        <div class="step-icon">📸</div>
-        <div class="step-body">
-          <div class="step-title">1 Photo — That's It</div>
-          <div class="step-desc">Look straight at your camera in good light and tap Capture</div>
-        </div>
-      </div>
-      <div class="step-row">
-        <div class="step-icon">✅</div>
-        <div class="step-body">
-          <div class="step-title">Face Validation</div>
-          <div class="step-desc">We confirm your face is visible before you can submit</div>
-        </div>
-      </div>
-      <div class="step-row">
-        <div class="step-icon">🔒</div>
-        <div class="step-body">
-          <div class="step-title">Private &amp; Secure</div>
-          <div class="step-desc">Your face data is stored on the local server only — never shared</div>
-        </div>
-      </div>
+    <div class="wel-sub">One photo for secure door access — choose how to register below</div>
+
+    <div class="wel-options">
+
+      <!-- Option A: Upload from gallery -->
+      <label class="wel-option-card upload-card" for="welUploadInput">
+        <span class="wel-opt-icon">📸</span>
+        <span class="wel-opt-body">
+          <span class="wel-opt-title">Upload a Photo</span>
+          <span class="wel-opt-desc">Choose an existing photo from your gallery or files — no camera needed</span>
+        </span>
+        <span class="wel-opt-arrow">›</span>
+        <input type="file" id="welUploadInput" accept="image/*" onchange="handleWelcomeUpload(this)" />
+      </label>
+
+      <!-- Option B: Live capture -->
+      <button class="wel-option-card" id="btnCapturePath" onclick="startCamera()">
+        <span class="wel-opt-icon">�</span>
+        <span class="wel-opt-body">
+          <span class="wel-opt-title">Capture with Camera</span>
+          <span class="wel-opt-desc">Take a live selfie — camera permission required</span>
+        </span>
+        <span class="wel-opt-arrow">›</span>
+      </button>
+
     </div>
-    <button class="btn-allow" id="btnAllow" onclick="startCamera()">Allow Camera &amp; Begin →</button>
-    <div class="wel-privacy">🔐 Camera is used for enrollment only &amp; then stopped</div>
+
+    <div class="wel-privacy">🔐 Your face data is stored on the local server only — never shared</div>
   </div>
 
   <!-- ── SCREEN 2: Camera ── -->
@@ -879,18 +953,6 @@
     </div>
 
     <div class="cam-footer">
-      <!-- Upload instead: collapsible panel -->
-      <div class="upload-toggle" id="uploadToggle" onclick="toggleUpload()">
-        <span>📁 Upload a photo instead</span>
-        <span class="arrow" id="uploadArrow">▾</span>
-      </div>
-      <div class="upload-panel" id="uploadPanel">
-        <label class="upload-label" for="photoUpload">
-          <span>📸 Choose from gallery or files</span>
-          <input type="file" id="photoUpload" accept="image/*" onchange="handleUpload(this)" />
-        </label>
-      </div>
-
       <div class="cam-hint" id="camHint">Centre your face inside the oval, then tap Capture</div>
       <button class="btn-capture" id="btnCapture" disabled onclick="doCapture()">📷 Capture</button>
     </div>
@@ -951,7 +1013,6 @@
     let facePresent = false;
     let pollHandle = null;
     let currentFacing = 'user';       // 'user' = front, 'environment' = back
-    let uploadOpen = false;
 
     const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -963,9 +1024,8 @@
 
     // ── Camera start ──────────────────────────────────────────────────────────
     async function startCamera() {
-      const btn = document.getElementById('btnAllow');
-      btn.textContent = 'Opening camera…';
-      btn.disabled = true;
+      const card = document.getElementById('btnCapturePath');
+      if (card) { card.disabled = true; card.style.opacity = '.6'; }
 
       try {
         stream = await navigator.mediaDevices.getUserMedia({
@@ -977,15 +1037,15 @@
         await vid.play();
         _applyMirror();
 
-        // Init browser FaceDetector if available
         if ('FaceDetector' in window) {
           try { faceDetector = new FaceDetector({ fastMode: true, maxDetectedFaces: 1 }); }
           catch (_) { }
         }
 
         show('scCamera');
-        pollFace();  // start live face detection
+        pollFace();
       } catch (err) {
+        if (card) { card.disabled = false; card.style.opacity = '1'; }
         let icon = '📷', title = 'Camera Error', msg = err.message;
         if (!navigator.mediaDevices?.getUserMedia) {
           icon = '🔒'; title = 'HTTPS Required';
@@ -1180,19 +1240,13 @@
       document.getElementById('btnSubmit').disabled = false;
       document.getElementById('btnSubmit').textContent = 'Register Face';
       setProgress(false);
-      // Close upload panel if open
-      _closeUpload();
 
-      // Restart camera (keep whichever facing was last used)
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: currentFacing, width: { ideal: 1280 }, height: { ideal: 960 } },
-        audio: false,
-      });
-      const vid = document.getElementById('vid');
-      vid.srcObject = stream; await vid.play();
-      _applyMirror();
-      show('scCamera');
-      pollFace();
+      // Go back to the welcome screen so the user can choose again
+      const card = document.getElementById('btnCapturePath');
+      if (card) { card.disabled = false; card.style.opacity = '1'; }
+      document.getElementById('welUploadInput').value = '';
+      stopCamera();
+      show('scWelcome');
     }
 
     // ── Start Over (after success) ────────────────────────────────────────────
@@ -1209,23 +1263,8 @@
       btn.textContent = 'Allow Camera & Begin →'; btn.disabled = false;
     }
 
-    // ── Upload instead ────────────────────────────────────────────────────────
-    function toggleUpload() {
-      uploadOpen = !uploadOpen;
-      const toggle = document.getElementById('uploadToggle');
-      const panel = document.getElementById('uploadPanel');
-      toggle.classList.toggle('open', uploadOpen);
-      panel.classList.toggle('open', uploadOpen);
-    }
-
-    function _closeUpload() {
-      uploadOpen = false;
-      document.getElementById('uploadToggle').classList.remove('open');
-      document.getElementById('uploadPanel').classList.remove('open');
-      document.getElementById('photoUpload').value = '';
-    }
-
-    function handleUpload(input) {
+    // ── Welcome-screen upload ───────────────────────────────────────────────────
+    function handleWelcomeUpload(input) {
       const file = input.files[0];
       if (!file) return;
       if (!file.type.startsWith('image/')) {
@@ -1234,10 +1273,7 @@
       }
       const reader = new FileReader();
       reader.onload = e => {
-        captured = e.target.result;    // base64 data-URL
-        _closeUpload();
-        clearTimeout(pollHandle);
-        stopCamera();
+        captured = e.target.result;
         document.getElementById('preview').src = captured;
         show('scConfirm');
         setTimeout(() => document.getElementById('nameInp').focus(), 300);

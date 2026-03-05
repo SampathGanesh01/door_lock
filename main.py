@@ -63,13 +63,14 @@ def generate_unique_id() -> str:
             return uid
 
 
-# ── ArcFace model (lazy, loaded in background) ─────────────────────────────────
+# ── ArcFace model (lazy, loaded ON DEMAND via /api/load_arcface) ───────────────
 _deepface_model = None
 _model_ready    = False
+_model_loading  = False   # guard against double-loading
 _model_lock     = threading.Lock()
 
 def _load_model_bg():
-    global _deepface_model, _model_ready
+    global _deepface_model, _model_ready, _model_loading
     try:
         log.info("Loading ArcFace model …")
         from deepface import DeepFace
@@ -79,11 +80,15 @@ def _load_model_bg():
         with _model_lock:
             _deepface_model = DeepFace
             _model_ready    = True
+            _model_loading  = False
         log.info("ArcFace model ready ✓")
     except Exception as exc:
+        with _model_lock:
+            _model_loading = False
         log.warning("ArcFace load failed: %s", exc)
 
-threading.Thread(target=_load_model_bg, daemon=True).start()
+# NOTE: ArcFace is NOT auto-loaded at startup.
+# Trigger it manually via  POST /api/load_arcface  (or the admin panel button).
 
 # ── InsightFace buffalo_s (lazy, background) ───────────────────────────────────
 _insight_app   = None
@@ -400,6 +405,25 @@ async def delete_face(name: str):
     return {"success": True, "deleted": name, "remaining": remaining}
 
 # ── InsightFace routes ─────────────────────────────────────────────────────────
+
+@app.post("/api/load_arcface")
+async def load_arcface():
+    """
+    Manually trigger ArcFace model loading in the background.
+    Safe to call multiple times — will not start a second thread if already loading or ready.
+    """
+    global _model_loading
+    with _model_lock:
+        if _model_ready:
+            return {"status": "already_ready", "message": "ArcFace model is already loaded."}
+        if _model_loading:
+            return {"status": "loading", "message": "ArcFace model is already loading..."}
+        _model_loading = True
+
+    log.info("ArcFace load triggered via admin panel.")
+    threading.Thread(target=_load_model_bg, daemon=True).start()
+    return {"status": "started", "message": "ArcFace model loading started in background. Check status in ~30–60s."}
+
 
 @app.get("/insight_register", response_class=HTMLResponse, include_in_schema=False)
 async def insight_register_page():

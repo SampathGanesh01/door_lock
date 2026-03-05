@@ -730,36 +730,30 @@
             <!-- Right: registration cards + actions -->
             <div style="display:flex;flex-direction:column;gap:16px">
 
-                <!-- ArcFace mobile registration -->
+                <!-- ArcFace registration -->
                 <div class="card">
                     <div class="card-title"><span>📱</span> ArcFace Registration
                         <span class="badge badge-arc" style="margin-left:6px">5-pose</span>
                     </div>
-                    <div class="card-sub">
-                        Share this link — guided 5-pose capture with ArcFace embedding.
-                    </div>
-                    <div class="url-box" id="mobileUrlBox">Loading URL…</div>
-                    <div class="btn-row">
-                        <button class="btn btn-primary btn-full" onclick="copyMobileUrl()">📋 Copy Link</button>
+                    <div class="card-sub">Guided 5-pose capture with ArcFace embedding.</div>
+                    <div class="btn-row" style="margin-top:14px">
+                        <a class="btn btn-primary btn-full" href="/mobile" target="_blank">📱 Open ArcFace
+                            Registration</a>
                     </div>
                 </div>
 
-                <!-- InsightFace kiosk registration -->
+                <!-- InsightFace registration -->
                 <div class="card" style="border-color:rgba(6,182,212,.3)">
                     <div class="card-title" style="color:var(--cyan)">
-                        <span>🪪</span> InsightFace Registration
+                        <span>🪪</span> Face Registration
                         <span class="badge badge-ins" style="margin-left:6px">1-photo</span>
                     </div>
-                    <div class="card-sub">
-                        Share this link — one selfie, instant enrollment for the kiosk sync system.
-                    </div>
-                    <div class="url-box" id="insightUrlBox" style="border-color:rgba(6,182,212,.25);color:#67e8f9">
-                        Loading URL…</div>
-                    <div class="btn-row">
-                        <button class="btn btn-full" onclick="copyInsightUrl()"
+                    <div class="card-sub">Upload or capture one photo — instant enrollment for door access.</div>
+                    <div class="btn-row" style="margin-top:14px">
+                        <a class="btn btn-full" href="/insight_register" target="_blank"
                             style="background:linear-gradient(135deg,var(--cyan),#0891b2);color:#fff;box-shadow:0 4px 18px rgba(6,182,212,.3)">
-                            📋 Copy Kiosk Link
-                        </button>
+                            🪪 Open Registration Page
+                        </a>
                     </div>
                     <!-- InsightFace model pill -->
                     <div style="margin-top:12px;display:flex;align-items:center;gap:8px">
@@ -775,14 +769,14 @@
                 <div class="card">
                     <div class="card-title"><span>⚡</span> Actions</div>
                     <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
-                        <button class="btn btn-outline btn-full" onclick="window.open('/mobile','_blank')">📱 Open
-                            ArcFace Page</button>
-                        <button class="btn btn-outline btn-full" onclick="window.open('/insight_register','_blank')">🪪
-                            Open Kiosk Reg Page</button>
+                        <button class="btn btn-full" id="btnLoadArcface" onclick="loadArcfaceModel()"
+                            style="background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;box-shadow:0 4px 18px rgba(108,92,231,.3)">
+                            🧨 Load ArcFace Model
+                        </button>
                         <button class="btn btn-outline btn-full" onclick="loadFaces();loadInsightFaces()">↻ Reload All
                             Lists</button>
                         <a class="btn btn-outline btn-full" href="/api/status" target="_blank">📊 API Status JSON</a>
-                        <a class="btn btn-outline btn-full" href="/docs" target="_blank">📖 API Docs (Swagger)</a>
+                        <a class="btn btn-outline btn-full" href="/docs" target="_blank">📖 API Docs</a>
                     </div>
                 </div>
 
@@ -950,31 +944,59 @@
             input.value = '';
         }
 
-        // ── URL helpers ───────────────────────────────────────────────────────────
-        let mobileUrl = window.location.origin + '/mobile';
-        let insightUrl = window.location.origin + '/insight_register';
+        // ── Load ArcFace on demand ────────────────────────────────────────────────
+        async function loadArcfaceModel() {
+            const btn = document.getElementById('btnLoadArcface');
+            btn.disabled = true;
+            btn.textContent = '⏳ Starting ArcFace…';
 
-        function initMobileUrl() {
-            document.getElementById('mobileUrlBox').textContent = mobileUrl;
-            document.getElementById('insightUrlBox').textContent = insightUrl;
+            try {
+                const data = await fetch('/api/load_arcface', { method: 'POST' }).then(r => r.json());
+
+                if (data.status === 'already_ready') {
+                    showToast('✅ ArcFace model is already loaded.', 'ok');
+                    btn.textContent = '✓ ArcFace Ready';
+                    return;
+                }
+                if (data.status === 'loading') {
+                    showToast('⏳ ArcFace is already loading — check the status card.', 'info');
+                    btn.textContent = '⏳ Loading…';
+                    _pollArcfaceReady(btn);
+                    return;
+                }
+                // status === 'started'
+                showToast('🧬 ArcFace loading started — this takes 30–90s.', 'ok', 5000);
+                btn.textContent = '⏳ Loading model…';
+                _pollArcfaceReady(btn);
+            } catch (err) {
+                showToast('Failed to start ArcFace: ' + err.message, 'err');
+                btn.disabled = false;
+                btn.textContent = '🧬 Load ArcFace Model';
+            }
         }
 
-        async function copyMobileUrl() {
-            try {
-                await navigator.clipboard.writeText(mobileUrl);
-                showToast('📋 ArcFace link copied!', 'ok');
-            } catch (_) { showToast('Copy failed — copy manually: ' + mobileUrl, 'err', 6000); }
-        }
-
-        async function copyInsightUrl() {
-            try {
-                await navigator.clipboard.writeText(insightUrl);
-                showToast('📋 Kiosk registration link copied!', 'ok');
-            } catch (_) { showToast('Copy failed — copy manually: ' + insightUrl, 'err', 6000); }
+        function _pollArcfaceReady(btn) {
+            const iv = setInterval(async () => {
+                try {
+                    const data = await fetch('/api/status').then(r => r.json());
+                    if (data.model_ready) {
+                        clearInterval(iv);
+                        // Update pill
+                        document.getElementById('statModel').textContent = 'Ready';
+                        const pill = document.getElementById('modelPill');
+                        const txt = document.getElementById('modelTxt');
+                        pill.className = 'model-pill ready';
+                        txt.textContent = 'ArcFace Ready ✓';
+                        // Update button
+                        btn.textContent = '✓ ArcFace Ready';
+                        btn.style.background = 'linear-gradient(135deg,var(--green),#00b894aa)';
+                        showToast('✅ ArcFace model is ready!', 'ok');
+                    }
+                } catch (_) { }
+            }, 4000);
         }
 
         // ── Boot ─────────────────────────────────────────────────────────────────
-        initMobileUrl();
         fetchStatus();
         fetchInsightStatus();
         loadFaces();
