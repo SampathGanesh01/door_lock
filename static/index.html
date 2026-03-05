@@ -172,17 +172,54 @@
             }
         }
 
-        /* Main grid */
+        /* Main grid — left col wider on large screens */
         .main {
             display: grid;
             grid-template-columns: 1fr 340px;
             gap: 20px;
         }
 
-        @media(max-width:800px) {
+        @media(max-width:900px) {
             .main {
                 grid-template-columns: 1fr;
             }
+        }
+
+        /* Two-panel layout inside left col */
+        .panels-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        @media(max-width:700px) {
+            .panels-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Badge on card titles */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 2px 10px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: .4px;
+        }
+
+        .badge-arc {
+            background: rgba(124, 95, 255, .15);
+            color: var(--accent2);
+            border: 1px solid rgba(124, 95, 255, .25);
+        }
+
+        .badge-ins {
+            background: rgba(6, 182, 212, .12);
+            color: var(--cyan);
+            border: 1px solid rgba(6, 182, 212, .3);
         }
 
         /* Card */
@@ -215,12 +252,18 @@
             line-height: 1.55;
         }
 
-        /* Stat row */
+        /* Stats row */
         .stats-row {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             gap: 14px;
             margin-bottom: 20px;
+        }
+
+        @media(max-width:700px) {
+            .stats-row {
+                grid-template-columns: repeat(2, 1fr);
+            }
         }
 
         .stat-card {
@@ -228,6 +271,15 @@
             border: 1px solid var(--border);
             border-radius: var(--radius);
             padding: 16px 18px;
+        }
+
+        /* Cyan card for InsightFace stat */
+        .stat-card.cyan-card {
+            border-color: rgba(6, 182, 212, 0.3);
+        }
+
+        .stat-card.cyan-card .stat-val {
+            color: var(--cyan);
         }
 
         .stat-val {
@@ -487,6 +539,19 @@
             color: var(--green);
         }
 
+        /* InsightFace pill (cyan accent) */
+        .model-pill.insight-loading {
+            background: rgba(6, 182, 212, 0.1);
+            border-color: rgba(6, 182, 212, 0.3);
+            color: var(--cyan);
+        }
+
+        .model-pill.insight-ready {
+            background: rgba(6, 182, 212, 0.15);
+            border-color: rgba(6, 182, 212, 0.5);
+            color: var(--cyan);
+        }
+
         .spin {
             width: 12px;
             height: 12px;
@@ -590,11 +655,15 @@
         <div class="stats-row">
             <div class="stat-card accent-card">
                 <div class="stat-val" id="statTotal">—</div>
-                <div class="stat-lbl">Registered Faces</div>
+                <div class="stat-lbl">ArcFace Users</div>
             </div>
             <div class="stat-card green-card">
                 <div class="stat-val" id="statModel">—</div>
-                <div class="stat-lbl">Model Status</div>
+                <div class="stat-lbl">ArcFace Model</div>
+            </div>
+            <div class="stat-card cyan-card">
+                <div class="stat-val" id="statInsightTotal">—</div>
+                <div class="stat-lbl">InsightFace Users</div>
             </div>
             <div class="stat-card yellow-card">
                 <div class="stat-val" id="statUptime">—</div>
@@ -603,25 +672,47 @@
         </div>
 
         <div class="main">
-            <!-- Left: faces list -->
+            <!-- Left: two panels side by side -->
             <div>
-                <div class="card">
-                    <div class="card-title">
-                        <span>🗂️</span> Registered People
-                        <button class="btn btn-outline btn-sm" onclick="loadFaces()" style="margin-left:auto">↻
-                            Refresh</button>
-                    </div>
-                    <div class="card-sub">Faces registered via mobile or uploaded from the kiosk.</div>
-                    <div class="faces-list" id="facesList">
-                        <div class="empty"><span class="empty-icon">⏳</span>
-                            <p>Loading…</p>
+                <div class="panels-row">
+
+                    <!-- ArcFace faces panel -->
+                    <div class="card">
+                        <div class="card-title">
+                            <span>🗂️</span> ArcFace Users
+                            <span class="badge badge-arc">DeepFace</span>
+                            <button class="btn btn-outline btn-sm" onclick="loadFaces()"
+                                style="margin-left:auto">↻</button>
+                        </div>
+                        <div class="card-sub">Registered via mobile or kiosk upload.</div>
+                        <div class="faces-list" id="facesList">
+                            <div class="empty"><span class="empty-icon">⏳</span>
+                                <p>Loading…</p>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- faces.json sync -->
+                    <!-- InsightFace faces panel -->
+                    <div class="card">
+                        <div class="card-title">
+                            <span>🧠</span> InsightFace Users
+                            <span class="badge badge-ins">buffalo_s</span>
+                            <button class="btn btn-outline btn-sm" onclick="loadInsightFaces()"
+                                style="margin-left:auto">↻</button>
+                        </div>
+                        <div class="card-sub">Registered via the kiosk phone page.</div>
+                        <div class="faces-list" id="insightFacesList">
+                            <div class="empty"><span class="empty-icon">⏳</span>
+                                <p>Loading…</p>
+                            </div>
+                        </div>
+                    </div>
+
+                </div><!-- /panels-row -->
+
+                <!-- Sync card -->
                 <div class="card" style="margin-top:16px">
-                    <div class="card-title"><span>🔄</span> Sync Database</div>
+                    <div class="card-title"><span>🔄</span> Sync ArcFace Database</div>
                     <div class="card-sub">
                         Download the current <code>faces.json</code> for the local kiosk,
                         or upload the kiosk's file to merge it here.
@@ -636,14 +727,16 @@
                 </div>
             </div>
 
-            <!-- Right: mobile registration + actions -->
+            <!-- Right: registration cards + actions -->
             <div style="display:flex;flex-direction:column;gap:16px">
 
-                <!-- Mobile registration link -->
+                <!-- ArcFace mobile registration -->
                 <div class="card">
-                    <div class="card-title"><span>📱</span> Mobile Registration</div>
+                    <div class="card-title"><span>📱</span> ArcFace Registration
+                        <span class="badge badge-arc" style="margin-left:6px">5-pose</span>
+                    </div>
                     <div class="card-sub">
-                        Share this link — someone can register their face from their phone with a guided 5-pose capture.
+                        Share this link — guided 5-pose capture with ArcFace embedding.
                     </div>
                     <div class="url-box" id="mobileUrlBox">Loading URL…</div>
                     <div class="btn-row">
@@ -651,22 +744,45 @@
                     </div>
                 </div>
 
+                <!-- InsightFace kiosk registration -->
+                <div class="card" style="border-color:rgba(6,182,212,.3)">
+                    <div class="card-title" style="color:var(--cyan)">
+                        <span>🪪</span> InsightFace Registration
+                        <span class="badge badge-ins" style="margin-left:6px">1-photo</span>
+                    </div>
+                    <div class="card-sub">
+                        Share this link — one selfie, instant enrollment for the kiosk sync system.
+                    </div>
+                    <div class="url-box" id="insightUrlBox" style="border-color:rgba(6,182,212,.25);color:#67e8f9">
+                        Loading URL…</div>
+                    <div class="btn-row">
+                        <button class="btn btn-full" onclick="copyInsightUrl()"
+                            style="background:linear-gradient(135deg,var(--cyan),#0891b2);color:#fff;box-shadow:0 4px 18px rgba(6,182,212,.3)">
+                            📋 Copy Kiosk Link
+                        </button>
+                    </div>
+                    <!-- InsightFace model pill -->
+                    <div style="margin-top:12px;display:flex;align-items:center;gap:8px">
+                        <div class="model-pill insight-loading" id="insightPill">
+                            <span class="spin"></span>
+                            <span id="insightPillTxt">Loading buffalo_s…</span>
+                        </div>
+                        <div style="font-size:11px;color:var(--muted)" id="insightCount"></div>
+                    </div>
+                </div>
+
                 <!-- Quick actions -->
                 <div class="card">
                     <div class="card-title"><span>⚡</span> Actions</div>
                     <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
-                        <button class="btn btn-outline btn-full" onclick="window.open('/mobile','_blank')">
-                            📱 Open Mobile Page
-                        </button>
-                        <button class="btn btn-outline btn-full" onclick="loadFaces()">
-                            ↻ Reload Face List
-                        </button>
-                        <a class="btn btn-outline btn-full" href="/api/status" target="_blank">
-                            📊 API Status JSON
-                        </a>
-                        <a class="btn btn-outline btn-full" href="/docs" target="_blank">
-                            📖 API Docs (Swagger)
-                        </a>
+                        <button class="btn btn-outline btn-full" onclick="window.open('/mobile','_blank')">📱 Open
+                            ArcFace Page</button>
+                        <button class="btn btn-outline btn-full" onclick="window.open('/insight_register','_blank')">🪪
+                            Open Kiosk Reg Page</button>
+                        <button class="btn btn-outline btn-full" onclick="loadFaces();loadInsightFaces()">↻ Reload All
+                            Lists</button>
+                        <a class="btn btn-outline btn-full" href="/api/status" target="_blank">📊 API Status JSON</a>
+                        <a class="btn btn-outline btn-full" href="/docs" target="_blank">📖 API Docs (Swagger)</a>
                     </div>
                 </div>
 
@@ -674,13 +790,19 @@
                 <div class="card">
                     <div class="card-title"><span>🔌</span> API Endpoints</div>
                     <div style="font-size:11px;color:var(--muted);line-height:2;font-family:monospace">
+                        <div style="color:var(--accent2);font-weight:700;margin-bottom:2px">── ArcFace ──</div>
                         <div><span style="color:var(--green)">GET</span> /mobile</div>
                         <div><span style="color:var(--cyan)">POST</span> /api/mobile_register</div>
                         <div><span style="color:var(--green)">GET</span> /api/faces</div>
                         <div><span style="color:var(--green)">GET</span> /api/faces.json</div>
                         <div><span style="color:var(--cyan)">POST</span> /api/faces.json</div>
                         <div><span style="color:var(--red)">DEL</span> /api/faces/{name}</div>
-                        <div><span style="color:var(--green)">GET</span> /api/status</div>
+                        <div style="color:var(--cyan);font-weight:700;margin:6px 0 2px">── InsightFace ──</div>
+                        <div><span style="color:var(--green)">GET</span> /insight_register</div>
+                        <div><span style="color:var(--cyan)">POST</span> /api/insight_register</div>
+                        <div><span style="color:var(--green)">GET</span> /api/insight_faces.json</div>
+                        <div><span style="color:var(--red)">DEL</span> /api/insight_faces/{name}</div>
+                        <div><span style="color:var(--green)">GET</span> /api/insight_status</div>
                     </div>
                 </div>
 
@@ -702,37 +824,70 @@
             _toastTm = setTimeout(() => { el.className = 'toast'; }, dur);
         }
 
-        // ── Status ─────────────────────────────────────────────────────────────────
+        // ── Status (ArcFace) ──────────────────────────────────────────────────────
         async function fetchStatus() {
             try {
                 const data = await fetch('/api/status').then(r => r.json());
                 document.getElementById('statTotal').textContent = data.registered ?? '—';
                 const ready = data.model_ready;
                 document.getElementById('statModel').textContent = ready ? 'Ready' : 'Loading';
-
                 const pill = document.getElementById('modelPill');
                 const txt = document.getElementById('modelTxt');
                 pill.className = ready ? 'model-pill ready' : 'model-pill';
                 txt.textContent = ready ? 'ArcFace Ready ✓' : 'Loading ArcFace…';
             } catch (_) { document.getElementById('statModel').textContent = 'Offline'; }
-
             const secs = Math.floor((Date.now() - _t0) / 1000);
             const m = Math.floor(secs / 60), s = secs % 60;
             document.getElementById('statUptime').textContent = `${m}m ${s}s`;
         }
 
-        // ── Faces list ─────────────────────────────────────────────────────────────
+        // ── Status (InsightFace) ──────────────────────────────────────────────────
+        async function fetchInsightStatus() {
+            try {
+                const data = await fetch('/api/insight_status').then(r => r.json());
+                document.getElementById('statInsightTotal').textContent = data.registered ?? '—';
+                const ready = data.model_ready;
+                const pill = document.getElementById('insightPill');
+                const txt = document.getElementById('insightPillTxt');
+                const cnt = document.getElementById('insightCount');
+                pill.className = ready ? 'model-pill insight-ready' : 'model-pill insight-loading';
+                txt.textContent = ready ? 'buffalo_s Ready ✓' : 'Loading buffalo_s…';
+                if (ready) pill.querySelector('.spin').style.display = 'none';
+                cnt.textContent = data.registered ? `${data.registered} registered` : '';
+            } catch (_) {
+                document.getElementById('statInsightTotal').textContent = '—';
+            }
+        }
+
+        // ── ArcFace faces list ────────────────────────────────────────────────────
         async function loadFaces() {
             try {
                 const data = await fetch('/api/faces').then(r => r.json());
-                renderFaces(data.faces || []);
-            } catch (_) { document.getElementById('facesList').innerHTML = '<div class="empty"><span class="empty-icon">⚠️</span><p>Failed to load</p></div>'; }
+                renderFaces(data.faces || [], 'facesList', deleteFace, 'ArcFace');
+            } catch (_) {
+                document.getElementById('facesList').innerHTML =
+                    '<div class="empty"><span class="empty-icon">⚠️</span><p>Failed to load</p></div>';
+            }
         }
 
-        function renderFaces(faces) {
-            const list = document.getElementById('facesList');
+        // ── InsightFace faces list ────────────────────────────────────────────────
+        async function loadInsightFaces() {
+            try {
+                const raw = await fetch('/api/insight_faces.json').then(r => r.json());
+                // Convert {name:{...}} dict → array
+                const faces = Object.entries(raw).map(([name, d]) => ({ name, ...d }));
+                renderFaces(faces, 'insightFacesList', deleteInsightFace, 'InsightFace');
+            } catch (_) {
+                document.getElementById('insightFacesList').innerHTML =
+                    '<div class="empty"><span class="empty-icon">⚠️</span><p>Failed to load</p></div>';
+            }
+        }
+
+        // ── Shared renderer ───────────────────────────────────────────────────────
+        function renderFaces(faces, listId, deleteFn, label) {
+            const list = document.getElementById(listId);
             if (!faces.length) {
-                list.innerHTML = '<div class="empty"><span class="empty-icon">📋</span><p>No one registered yet</p></div>';
+                list.innerHTML = `<div class="empty"><span class="empty-icon">📋</span><p>No ${label} users yet</p></div>`;
                 return;
             }
             list.innerHTML = faces.map(f => {
@@ -740,29 +895,42 @@
                     ? `<img class="face-thumb" src="data:image/jpeg;base64,${f.face_b64}" alt="${f.name}"/>`
                     : `<div class="face-avatar">${f.name[0].toUpperCase()}</div>`;
                 const safe = f.name.replace(/'/g, "\\'");
-                const uidHtml = f.user_id ? `<span style="color:var(--muted);font-weight:normal;margin-left:6px;font-size:11px">#${f.user_id}</span>` : '';
+                const uidHtml = f.user_id
+                    ? `<span style="color:var(--muted);font-weight:normal;margin-left:6px;font-size:11px">#${f.user_id}</span>`
+                    : '';
+                const samples = f.samples ?? (f.embeddings ? f.embeddings.length : 0);
                 return `
-        <div class="face-item">
-          ${thumb}
-          <div class="face-info">
-            <div class="face-name">${f.name}${uidHtml}</div>
-            <div class="face-samples">${f.samples} ArcFace embedding${f.samples !== 1 ? 's' : ''}</div>
-          </div>
-          <button class="del-btn" onclick="deleteFace('${safe}')" title="Remove">🗑️</button>
-        </div>`;
+  <div class="face-item">
+    ${thumb}
+    <div class="face-info">
+      <div class="face-name">${f.name}${uidHtml}</div>
+      <div class="face-samples">${samples} embedding${samples !== 1 ? 's' : ''}</div>
+    </div>
+    <button class="del-btn" onclick="${deleteFn.name}('${safe}')" title="Remove">🗑️</button>
+  </div>`;
             }).join('');
         }
 
+        // ── Delete helpers ────────────────────────────────────────────────────────
         async function deleteFace(name) {
-            if (!confirm(`Remove ${name} from the database?`)) return;
+            if (!confirm(`Remove ${name} from ArcFace database?`)) return;
             try {
                 await fetch(`/api/faces/${encodeURIComponent(name)}`, { method: 'DELETE' });
-                showToast(`🗑️ ${name} removed.`, 'info');
+                showToast(`🗑️ ${name} removed from ArcFace.`, 'info');
                 loadFaces(); fetchStatus();
             } catch (_) { showToast('Delete failed.', 'err'); }
         }
 
-        // ── Upload faces.json ──────────────────────────────────────────────────────
+        async function deleteInsightFace(name) {
+            if (!confirm(`Remove ${name} from InsightFace database?`)) return;
+            try {
+                await fetch(`/api/insight_faces/${encodeURIComponent(name)}`, { method: 'DELETE' });
+                showToast(`🗑️ ${name} removed from InsightFace.`, 'info');
+                loadInsightFaces(); fetchInsightStatus();
+            } catch (_) { showToast('Delete failed.', 'err'); }
+        }
+
+        // ── Upload faces.json (ArcFace) ───────────────────────────────────────────
         async function uploadJson(input) {
             const file = input.files[0];
             if (!file) return;
@@ -770,8 +938,7 @@
                 const text = await file.text();
                 const json = JSON.parse(text);
                 const res = await fetch('/api/faces.json', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(json),
                 });
                 const data = await res.json();
@@ -783,27 +950,39 @@
             input.value = '';
         }
 
-        // ── Mobile URL ─────────────────────────────────────────────────────────────
+        // ── URL helpers ───────────────────────────────────────────────────────────
         let mobileUrl = window.location.origin + '/mobile';
+        let insightUrl = window.location.origin + '/insight_register';
 
         function initMobileUrl() {
-            const box = document.getElementById('mobileUrlBox');
-            box.textContent = mobileUrl;
+            document.getElementById('mobileUrlBox').textContent = mobileUrl;
+            document.getElementById('insightUrlBox').textContent = insightUrl;
         }
 
         async function copyMobileUrl() {
             try {
                 await navigator.clipboard.writeText(mobileUrl);
-                showToast('📋 Link copied!', 'ok');
+                showToast('📋 ArcFace link copied!', 'ok');
             } catch (_) { showToast('Copy failed — copy manually: ' + mobileUrl, 'err', 6000); }
         }
 
-        // ── Boot ───────────────────────────────────────────────────────────────────
+        async function copyInsightUrl() {
+            try {
+                await navigator.clipboard.writeText(insightUrl);
+                showToast('📋 Kiosk registration link copied!', 'ok');
+            } catch (_) { showToast('Copy failed — copy manually: ' + insightUrl, 'err', 6000); }
+        }
+
+        // ── Boot ─────────────────────────────────────────────────────────────────
         initMobileUrl();
         fetchStatus();
+        fetchInsightStatus();
         loadFaces();
+        loadInsightFaces();
         setInterval(fetchStatus, 5000);
+        setInterval(fetchInsightStatus, 8000);
         setInterval(loadFaces, 15000);
+        setInterval(loadInsightFaces, 15000);
     </script>
 </body>
 
