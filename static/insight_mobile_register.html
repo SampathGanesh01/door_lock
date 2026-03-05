@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>FaceDoor — Register</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #07060f;
+      --s2:      #110f22;
+      --accent:  #6c5ce7;
+      --accent2: #a29bfe;
+      --cyan:    #00cec9;
+      --green:   #00b894;
+      --red:     #d63031;
+      --text:    #f0eeff;
+      --muted:   rgba(200,190,255,.5);
+      --border:  rgba(108,92,231,.2);
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ── Ambient blobs ── */
+    .blob { position:fixed; border-radius:50%; filter:blur(90px); pointer-events:none; z-index:0; opacity:.22; }
+    .b1 { width:380px; height:380px; background:#4834d4; top:-100px; left:-100px; }
+    .b2 { width:300px; height:300px; background:#0984e3; bottom:40px; right:-80px; }
+    .b3 { width:200px; height:200px; background:#6c5ce7; top:45%; left:35%; }
+
+    /* ── Screen system ── */
+    .screen { position:absolute; inset:0; z-index:10; display:none; flex-direction:column; }
+    .screen.active { display:flex; }
+
+    /* ════════════════════
+       SCREEN 1 — Welcome
+    ════════════════════ */
+    #scWelcome {
+      align-items:center; justify-content:center;
+      padding:40px 28px; gap:0; background:var(--bg);
+    }
+    .wel-logo { font-size:60px; margin-bottom:22px; animation:floatY 3s ease-in-out infinite; }
+    @keyframes floatY { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+    .wel-title {
+      font-size:26px; font-weight:800; text-align:center; line-height:1.2;
+      background:linear-gradient(135deg,#a29bfe,#6c5ce7,#00cec9);
+      -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+    }
+    .wel-sub { font-size:14px; color:var(--muted); text-align:center; margin:10px 0 30px; line-height:1.6; }
+    .wel-steps { width:100%; display:flex; flex-direction:column; gap:11px; margin-bottom:32px; }
+    .step-row {
+      display:flex; align-items:center; gap:14px;
+      background:rgba(108,92,231,.1); border:1px solid var(--border);
+      border-radius:16px; padding:14px;
+    }
+    .step-icon { font-size:22px; flex-shrink:0; width:36px; text-align:center; }
+    .step-body { flex:1; }
+    .step-title { font-size:13px; font-weight:700; color:var(--text); }
+    .step-desc  { font-size:11px; color:var(--muted); margin-top:2px; line-height:1.4; }
+    .btn-allow {
+      width:100%; padding:17px; border:none; border-radius:16px;
+      background:linear-gradient(135deg,var(--accent),#a29bfe);
+      color:#fff; font-size:16px; font-weight:700;
+      font-family:'Inter',sans-serif; cursor:pointer; letter-spacing:.3px;
+      box-shadow:0 12px 32px rgba(108,92,231,.45); transition:transform .2s, box-shadow .2s;
+    }
+    .btn-allow:active { transform:scale(.97); }
+    .btn-allow:disabled { opacity:.5; cursor:not-allowed; }
+    .wel-privacy { font-size:11px; color:var(--muted); text-align:center; margin-top:12px; line-height:1.5; }
+
+    /* ════════════════════
+       SCREEN 2 — Camera
+    ════════════════════ */
+    #scCamera { background:#000; }
+
+    .cam-hdr {
+      position:relative; z-index:5;
+      display:flex; align-items:center; justify-content:space-between;
+      padding:14px 16px 10px;
+      background:rgba(7,6,15,.9); flex-shrink:0;
+    }
+    .cam-logo { display:flex; align-items:center; gap:8px; }
+    .cam-logo-icon { font-size:20px; }
+    .cam-logo-name {
+      font-size:16px; font-weight:800;
+      background:linear-gradient(135deg,#a29bfe,#6c5ce7);
+      -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+    }
+
+    /* Face status pill */
+    .face-pill {
+      display:flex; align-items:center; gap:6px;
+      background:rgba(20,16,40,.85); backdrop-filter:blur(10px);
+      border:1px solid var(--border); border-radius:999px;
+      padding:6px 14px; font-size:12px; font-weight:600;
+      transition:border-color .3s, color .3s;
+    }
+    .face-pill .dot {
+      width:8px; height:8px; border-radius:50%;
+      background:var(--muted); transition:background .3s;
+      animation:blink 1.4s ease-in-out infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.35} }
+    .face-pill.ok { border-color:rgba(0,184,148,.5); color:var(--green); }
+    .face-pill.ok .dot { background:var(--green); animation:none; }
+    .face-pill.scanning { border-color:rgba(253,203,110,.3); color:#fdcb6e; }
+
+    /* Camera viewport */
+    .cam-view { position:relative; flex:1; overflow:hidden; background:#000; }
+    #vid { width:100%; height:100%; object-fit:cover; transform:scaleX(-1); }
+
+    /* Oval guide */
+    .oval-wrap {
+      position:absolute; inset:0;
+      display:flex; align-items:center; justify-content:center; pointer-events:none;
+    }
+    .oval-svg { width:56%; max-width:210px; }
+    .oval-path {
+      fill:none; stroke-width:3; stroke-linecap:round;
+      stroke-dasharray:8 4; transition:stroke .35s;
+    }
+    #ovalPath { stroke:rgba(108,92,231,.8); }
+    .oval-mask {
+      position:absolute; inset:0;
+      background:rgba(0,0,0,.3); pointer-events:none;
+    }
+
+    /* Bottom instruction */
+    .cam-footer {
+      background:rgba(7,6,15,.92);
+      padding:16px 20px 28px;
+      display:flex; flex-direction:column; align-items:center; gap:12px;
+      flex-shrink:0;
+    }
+    .cam-hint { font-size:13px; color:var(--muted); text-align:center; }
+    .btn-capture {
+      width:100%; max-width:320px; padding:16px; border:none; border-radius:16px;
+      background:linear-gradient(135deg,var(--accent),#a29bfe);
+      color:#fff; font-size:16px; font-weight:700;
+      font-family:'Inter',sans-serif; cursor:pointer; letter-spacing:.3px;
+      box-shadow:0 10px 28px rgba(108,92,231,.4); transition:all .2s;
+    }
+    .btn-capture:disabled { opacity:.35; cursor:not-allowed; box-shadow:none; }
+    .btn-capture:active:not(:disabled) { transform:scale(.97); }
+
+    /* Flash overlay */
+    .flash { position:absolute; inset:0; background:#fff; opacity:0; pointer-events:none; transition:opacity .1s; }
+    .flash.go { opacity:.7; }
+
+    /* ════════════════════
+       SCREEN 3 — Confirm
+    ════════════════════ */
+    #scConfirm { background:var(--bg); padding:0; }
+    .conf-scroll { flex:1; overflow-y:auto; padding:28px 22px 32px; }
+    .conf-top { text-align:center; margin-bottom:22px; }
+    .conf-emoji { font-size:46px; margin-bottom:12px; }
+    .conf-title { font-size:22px; font-weight:800; margin-bottom:6px; }
+    .conf-sub { font-size:13px; color:var(--muted); line-height:1.5; }
+
+    /* Preview image */
+    .preview-wrap {
+      display:flex; justify-content:center; margin-bottom:24px;
+    }
+    #preview {
+      width:120px; height:120px; object-fit:cover; border-radius:50%;
+      border:3px solid var(--green); box-shadow:0 0 20px rgba(0,184,148,.35);
+    }
+
+    /* Name field */
+    .fld { margin-bottom:16px; }
+    .fld label { display:block; font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.6px; margin-bottom:7px; }
+    .fld input {
+      width:100%; background:var(--s2); border:1px solid var(--border);
+      border-radius:14px; color:var(--text);
+      font-family:'Inter',sans-serif; font-size:15px; padding:14px 16px;
+      outline:none; transition:border-color .2s, box-shadow .2s;
+      -webkit-appearance:none;
+    }
+    .fld input:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(108,92,231,.18); }
+
+    /* Progress bar */
+    .prog-wrap { margin-bottom:14px; display:none; }
+    .prog-lbl { font-size:11px; color:var(--muted); margin-bottom:5px; }
+    .prog-bg { background:rgba(255,255,255,.06); border-radius:4px; height:4px; }
+    .prog-bar { height:100%; border-radius:4px; background:linear-gradient(90deg,var(--accent),var(--cyan)); width:0; transition:width .5s ease; }
+
+    .btn-submit {
+      width:100%; padding:16px; border:none; border-radius:16px;
+      background:linear-gradient(135deg,var(--accent),#a29bfe);
+      color:#fff; font-size:16px; font-weight:700;
+      font-family:'Inter',sans-serif; cursor:pointer;
+      box-shadow:0 10px 28px rgba(108,92,231,.4); transition:all .2s; margin-bottom:10px;
+    }
+    .btn-submit:disabled { opacity:.45; cursor:not-allowed; }
+    .btn-submit:active:not(:disabled) { transform:scale(.98); }
+    .btn-retake {
+      width:100%; padding:13px; border:1px solid var(--border); border-radius:16px;
+      background:transparent; color:var(--muted); font-size:13px; font-weight:600;
+      font-family:'Inter',sans-serif; cursor:pointer; transition:border-color .2s;
+    }
+    .btn-retake:active { border-color:var(--accent); }
+
+    /* ════════════════════
+       SCREEN 4 — Success
+    ════════════════════ */
+    #scSuccess {
+      align-items:center; justify-content:center;
+      padding:40px 32px; gap:18px; background:var(--bg); text-align:center;
+    }
+    .succ-ring {
+      width:96px; height:96px; border-radius:50%;
+      background:linear-gradient(135deg,var(--green),#00b894bb);
+      display:flex; align-items:center; justify-content:center; font-size:44px;
+      animation:popIn .5s cubic-bezier(.34,1.56,.64,1);
+    }
+    @keyframes popIn { from{transform:scale(0);opacity:0} to{transform:scale(1);opacity:1} }
+    .succ-title { font-size:26px; font-weight:800; }
+    .succ-name  { font-size:18px; font-weight:700; color:var(--green); }
+    .succ-uid   { font-size:12px; color:var(--muted); font-family:monospace; }
+    .succ-sub   { font-size:13px; color:var(--muted); line-height:1.65; max-width:280px; }
+    .btn-again {
+      background:rgba(108,92,231,.15); border:1px solid rgba(108,92,231,.3);
+      color:var(--accent2); border-radius:16px;
+      font-family:'Inter',sans-serif; font-size:14px; font-weight:700;
+      padding:13px 28px; cursor:pointer; transition:all .2s;
+    }
+
+    /* ════════════════════
+       SCREEN 5 — Error
+    ════════════════════ */
+    #scError {
+      align-items:center; justify-content:center;
+      padding:40px 28px; gap:14px; background:var(--bg); text-align:center;
+    }
+    .err-icon  { font-size:60px; }
+    .err-title { font-size:20px; font-weight:800; color:var(--red); }
+    .err-msg   { font-size:13px; color:var(--muted); line-height:1.65; max-width:290px; }
+    .btn-reload {
+      padding:14px 32px; border:1px solid var(--border); border-radius:16px;
+      background:var(--s2); color:var(--text); font-family:'Inter',sans-serif;
+      font-size:14px; font-weight:600; cursor:pointer;
+    }
+
+    /* ── Toast ── */
+    .toast {
+      position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px);
+      background:rgba(20,16,40,.95); border:1px solid var(--border);
+      border-radius:14px; padding:10px 20px;
+      font-size:13px; font-weight:600; color:var(--text);
+      opacity:0; pointer-events:none; transition:opacity .25s,transform .25s;
+      z-index:999; white-space:nowrap;
+    }
+    .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+    .toast.ok  { border-color:rgba(0,184,148,.5); color:var(--green); }
+    .toast.err { border-color:rgba(214,48,49,.5);  color:var(--red); }
+
+    canvas { display:none; }
+  </style>
+</head>
+
+<body>
+  <div class="blob b1"></div>
+  <div class="blob b2"></div>
+  <div class="blob b3"></div>
+
+  <!-- ── SCREEN 1: Welcome ── -->
+  <div class="screen active" id="scWelcome">
+    <div class="wel-logo">🪪</div>
+    <div class="wel-title">Register Your Face</div>
+    <div class="wel-sub">One quick photo for secure door access at ASBL GYM</div>
+    <div class="wel-steps">
+      <div class="step-row">
+        <div class="step-icon">📸</div>
+        <div class="step-body">
+          <div class="step-title">1 Photo — That's It</div>
+          <div class="step-desc">Look straight at your camera in good light and tap Capture</div>
+        </div>
+      </div>
+      <div class="step-row">
+        <div class="step-icon">✅</div>
+        <div class="step-body">
+          <div class="step-title">Face Validation</div>
+          <div class="step-desc">We confirm your face is visible before you can submit</div>
+        </div>
+      </div>
+      <div class="step-row">
+        <div class="step-icon">🔒</div>
+        <div class="step-body">
+          <div class="step-title">Private &amp; Secure</div>
+          <div class="step-desc">Your face data is stored on the local server only — never shared</div>
+        </div>
+      </div>
+    </div>
+    <button class="btn-allow" id="btnAllow" onclick="startCamera()">Allow Camera &amp; Begin →</button>
+    <div class="wel-privacy">🔐 Camera is used for enrollment only &amp; then stopped</div>
+  </div>
+
+  <!-- ── SCREEN 2: Camera ── -->
+  <div class="screen" id="scCamera">
+    <div class="cam-hdr">
+      <div class="cam-logo">
+        <span class="cam-logo-icon">🚪</span>
+        <span class="cam-logo-name">FaceDoor</span>
+      </div>
+      <!-- live face detection pill -->
+      <div class="face-pill scanning" id="facePill">
+        <div class="dot"></div>
+        <span id="pillText">Position your face</span>
+      </div>
+    </div>
+
+    <div class="cam-view">
+      <video id="vid" autoplay playsinline muted></video>
+      <div class="oval-mask" id="ovalMask"></div>
+      <div class="oval-wrap">
+        <svg class="oval-svg" viewBox="0 0 200 270" xmlns="http://www.w3.org/2000/svg">
+          <ellipse id="ovalPath" class="oval-path" cx="100" cy="135" rx="86" ry="118" />
+        </svg>
+      </div>
+      <div class="flash" id="flash"></div>
+    </div>
+
+    <div class="cam-footer">
+      <div class="cam-hint" id="camHint">Centre your face inside the oval, then tap Capture</div>
+      <button class="btn-capture" id="btnCapture" disabled onclick="doCapture()">📷 Capture</button>
+    </div>
+  </div>
+
+  <!-- ── SCREEN 3: Confirm + Name ── -->
+  <div class="screen" id="scConfirm">
+    <div class="conf-scroll">
+      <div class="conf-top">
+        <div class="conf-emoji">✅</div>
+        <div class="conf-title">Looking good!</div>
+        <div class="conf-sub">Enter your name below to complete registration.</div>
+      </div>
+      <div class="preview-wrap">
+        <img id="preview" src="" alt="captured face" />
+      </div>
+      <div class="fld">
+        <label for="nameInp">Full Name</label>
+        <input id="nameInp" type="text" placeholder="e.g. Sampath Kumar"
+               autocomplete="name" inputmode="text" />
+      </div>
+      <div class="prog-wrap" id="progWrap">
+        <div class="prog-lbl" id="progLbl">Sending…</div>
+        <div class="prog-bg"><div class="prog-bar" id="progBar"></div></div>
+      </div>
+      <button class="btn-submit" id="btnSubmit" onclick="submitReg()">Register Face</button>
+      <button class="btn-retake" onclick="retake()">↩ Retake Photo</button>
+    </div>
+  </div>
+
+  <!-- ── SCREEN 4: Success ── -->
+  <div class="screen" id="scSuccess">
+    <div class="succ-ring">✓</div>
+    <div class="succ-title">Registered!</div>
+    <div class="succ-name" id="succName"></div>
+    <div class="succ-uid"  id="succUid"></div>
+    <div class="succ-sub">Your face is enrolled. Access will be active at the kiosk within ~30 seconds.</div>
+    <button class="btn-again" onclick="startOver()">+ Register Another Person</button>
+  </div>
+
+  <!-- ── SCREEN 5: Error ── -->
+  <div class="screen" id="scError">
+    <div class="err-icon" id="errIcon">📷</div>
+    <div class="err-title" id="errTitle">Camera Access Denied</div>
+    <div class="err-msg"   id="errMsg">Please allow camera access in your browser settings and reload.</div>
+    <button class="btn-reload" onclick="location.reload()">🔄 Try Again</button>
+  </div>
+
+  <canvas id="canvas"></canvas>
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ── State ─────────────────────────────────────────────────────────────────
+    let stream      = null;
+    let captured    = null;   // single base64 data-URL
+    let faceDetector = null;
+    let facePresent  = false;
+    let pollHandle   = null;
+
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+    // ── Screen manager ────────────────────────────────────────────────────────
+    function show(id) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+    }
+
+    // ── Camera start ──────────────────────────────────────────────────────────
+    async function startCamera() {
+      const btn = document.getElementById('btnAllow');
+      btn.textContent = 'Opening camera…';
+      btn.disabled = true;
+
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 960 } },
+          audio: false,
+        });
+        const vid = document.getElementById('vid');
+        vid.srcObject = stream;
+        await vid.play();
+
+        // Init browser FaceDetector if available
+        if ('FaceDetector' in window) {
+          try { faceDetector = new FaceDetector({ fastMode: true, maxDetectedFaces: 1 }); }
+          catch (_) {}
+        }
+
+        show('scCamera');
+        pollFace();  // start live face detection
+      } catch (err) {
+        let icon = '📷', title = 'Camera Error', msg = err.message;
+        if (!navigator.mediaDevices?.getUserMedia) {
+          icon = '🔒'; title = 'HTTPS Required';
+          msg = 'Camera access requires a secure HTTPS connection. Open this page over HTTPS.';
+        } else if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          icon = '🚫'; title = 'Permission Denied';
+          msg = "Camera permission was denied. Tap the camera icon in your browser's address bar and allow access, then try again.";
+        } else if (err.name === 'NotFoundError') {
+          icon = '🔍'; title = 'No Camera Found';
+          msg = 'No camera was detected on this device.';
+        }
+        document.getElementById('errIcon').textContent  = icon;
+        document.getElementById('errTitle').textContent = title;
+        document.getElementById('errMsg').textContent   = msg;
+        show('scError');
+      }
+    }
+
+    // ── Live face detection ───────────────────────────────────────────────────
+    async function pollFace() {
+      if (!stream) return;
+      let detected = true;   // default: assume face present if no detector
+      if (faceDetector) {
+        const vid = document.getElementById('vid');
+        if (vid.readyState >= 2) {
+          try {
+            const faces = await faceDetector.detect(vid);
+            detected = faces.length > 0;
+          } catch (_) { detected = true; }
+        } else {
+          detected = false;
+        }
+      }
+      updateFaceUI(detected);
+      facePresent = detected;
+      pollHandle = setTimeout(pollFace, 200);   // 5 fps
+    }
+
+    function updateFaceUI(detected) {
+      const pill = document.getElementById('facePill');
+      const txt  = document.getElementById('pillText');
+      const oval = document.getElementById('ovalPath');
+      const hint = document.getElementById('camHint');
+      const btn  = document.getElementById('btnCapture');
+
+      if (detected) {
+        pill.className = 'face-pill ok';
+        txt.textContent = '✓ Face detected';
+        oval.style.stroke = 'rgba(0,184,148,.95)';
+        hint.textContent  = 'Great! Tap Capture when ready.';
+        btn.disabled = false;
+      } else {
+        pill.className = 'face-pill scanning';
+        txt.textContent = 'Position your face in the oval';
+        oval.style.stroke = 'rgba(108,92,231,.8)';
+        hint.textContent  = 'Centre your face inside the oval, then tap Capture';
+        btn.disabled = true;
+      }
+    }
+
+    // ── Capture ───────────────────────────────────────────────────────────────
+    function doCapture() {
+      const vid    = document.getElementById('vid');
+      const canvas = document.getElementById('canvas');
+
+      // Limit resolution to avoid large payloads
+      const MAX = 640;
+      let w = vid.videoWidth  || 640;
+      let h = vid.videoHeight || 480;
+      if (w > MAX) { const r = MAX / w; w = MAX; h = Math.round(h * r); }
+
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.save();
+      ctx.translate(w, 0); ctx.scale(-1, 1);   // un-mirror selfie
+      ctx.drawImage(vid, 0, 0, w, h);
+      ctx.restore();
+      captured = canvas.toDataURL('image/jpeg', 0.85);
+
+      // Flash effect
+      const flash = document.getElementById('flash');
+      flash.classList.add('go');
+      setTimeout(() => flash.classList.remove('go'), 130);
+
+      // Stop face polling + camera; show confirm screen
+      clearTimeout(pollHandle);
+      stopCamera();
+      document.getElementById('preview').src = captured;
+      show('scConfirm');
+      setTimeout(() => document.getElementById('nameInp').focus(), 300);
+    }
+
+    // ── Submit ────────────────────────────────────────────────────────────────
+    async function submitReg() {
+      const name = document.getElementById('nameInp').value.trim();
+      if (!name) {
+        document.getElementById('nameInp').focus();
+        showToast('Please enter your name', 'err');
+        return;
+      }
+
+      const btn = document.getElementById('btnSubmit');
+      btn.disabled = true; btn.textContent = '⏳ Registering…';
+      setProgress(true, 'Sending photo to server…', 25);
+
+      try {
+        setProgress(true, 'Extracting InsightFace embedding…', 60);
+
+        const res  = await fetch('/api/insight_register', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ name, image: captured }),
+        });
+
+        setProgress(true, 'Saving…', 90);
+        const data = await res.json();
+        setProgress(true, 'Done!', 100);
+        await sleep(300);
+
+        if (data.success) {
+          document.getElementById('succName').textContent = name;
+          document.getElementById('succUid').textContent  = data.user_id ? `ID #${data.user_id}` : '';
+          show('scSuccess');
+        } else {
+          showToast('❌ ' + (data.error || 'Registration failed'), 'err');
+          btn.disabled = false; btn.textContent = 'Register Face';
+          setProgress(false);
+        }
+      } catch (err) {
+        showToast('Request failed: ' + err.message, 'err');
+        btn.disabled = false; btn.textContent = 'Register Face';
+        setProgress(false);
+      }
+    }
+
+    function setProgress(show, label = '', pct = 0) {
+      const wrap = document.getElementById('progWrap');
+      wrap.style.display = show ? 'block' : 'none';
+      if (show) {
+        document.getElementById('progLbl').textContent = label;
+        document.getElementById('progBar').style.width = pct + '%';
+      }
+    }
+
+    // ── Retake ────────────────────────────────────────────────────────────────
+    async function retake() {
+      captured = null;
+      document.getElementById('nameInp').value = '';
+      document.getElementById('btnSubmit').disabled = false;
+      document.getElementById('btnSubmit').textContent = 'Register Face';
+      setProgress(false);
+
+      // Restart camera
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 960 } },
+        audio: false,
+      });
+      const vid = document.getElementById('vid');
+      vid.srcObject = stream; await vid.play();
+      show('scCamera');
+      pollFace();
+    }
+
+    // ── Start Over (after success) ────────────────────────────────────────────
+    async function startOver() {
+      captured = null;
+      document.getElementById('nameInp').value = '';
+      document.getElementById('btnSubmit').disabled = false;
+      document.getElementById('btnSubmit').textContent = 'Register Face';
+      setProgress(false);
+
+      // Restart camera and go back to welcome
+      show('scWelcome');
+      const btn = document.getElementById('btnAllow');
+      btn.textContent = 'Allow Camera & Begin →'; btn.disabled = false;
+    }
+
+    // ── Stop camera ───────────────────────────────────────────────────────────
+    function stopCamera() {
+      if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+    }
+
+    // ── Toast ─────────────────────────────────────────────────────────────────
+    let _toastTm;
+    function showToast(msg, type = '', dur = 3500) {
+      const el = document.getElementById('toast');
+      el.textContent = msg; el.className = `toast show ${type}`;
+      clearTimeout(_toastTm);
+      _toastTm = setTimeout(() => el.className = 'toast', dur);
+    }
+  </script>
+</body>
+</html>

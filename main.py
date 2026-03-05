@@ -52,7 +52,8 @@ STATIC    = BASE_DIR / "static"
 # ── MongoDB Client ─────────────────────────────────────────────────────────────
 mongo_client = pymongo.MongoClient(MONGO_URI)
 db = mongo_client[DATABASE_NAME]
-users_collection = db[COLLECTION_NAME]
+users_collection    = db[COLLECTION_NAME]
+insight_collection  = db["insight_users"]   # separate collection for InsightFace embeddings
 
 def generate_unique_id() -> str:
     """Generate a unique 4-digit ID."""
@@ -83,6 +84,27 @@ def _load_model_bg():
         log.warning("ArcFace load failed: %s", exc)
 
 threading.Thread(target=_load_model_bg, daemon=True).start()
+
+# ── InsightFace buffalo_s (lazy, background) ───────────────────────────────────
+_insight_app   = None
+_insight_ready = False
+_insight_lock  = threading.Lock()
+
+def _load_insight_bg():
+    global _insight_app, _insight_ready
+    try:
+        log.info("Loading InsightFace buffalo_s …")
+        from insightface.app import FaceAnalysis
+        ia = FaceAnalysis(name="buffalo_s", providers=["CPUExecutionProvider"])
+        ia.prepare(ctx_id=0, det_size=(320, 320))
+        with _insight_lock:
+            _insight_app   = ia
+            _insight_ready = True
+        log.info("InsightFace buffalo_s ready ✓")
+    except Exception as exc:
+        log.warning("InsightFace load failed: %s", exc)
+
+threading.Thread(target=_load_insight_bg, daemon=True).start()
 
 # ── DB helpers ─────────────────────────────────────────────────────────────────
 _db_lock = threading.Lock()
@@ -376,6 +398,125 @@ async def delete_face(name: str):
             raise HTTPException(status_code=404, detail=f"'{name}' not found")
     remaining = users_collection.count_documents({})
     return {"success": True, "deleted": name, "remaining": remaining}
+
+# ── InsightFace routes ─────────────────────────────────────────────────────────
+
+@app.get("/insight_register", response_class=HTMLResponse, include_in_schema=False)
+async def insight_register_page():
+    """Serve the single-photo kiosk registration page."""
+    p = STATIC / "insight_mobile_register.html"
+    if not p.exists():
+        raise HTTPException(status_code=404, detail="insight_mobile_register.html not found")
+    return HTMLResponse(p.read_text())
+
+
+@app.get("/api/insight_status")
+async def insight_status():
+    return {
+        "model_ready": _insight_ready,
+        "registered":  insight_collection.count_documents({}),
+    }
+
+
+@app.post("/api/insight_register")
+async def insight_register(request: Request):
+    """
+    Single-photo InsightFace registration.
+    Body: { "name": str, "image": "data:image/jpeg;base64,..." }
+    Returns: { "success": bool, "name": str, "user_id": str }
+    """
+    try:
+        body = await request.json()
+    except Exception as exc:
+        return JSONResponse({"success": False, "error": f"JSON parse error: {exc}"}, status_code=400)
+
+    name = (body.get("name") or "").strip()
+    b64  = (body.get("image") or "").strip()
+
+    if not name:
+        raise HTTPException(status_code=422, detail="name is required")
+    if not b64:
+        raise HTTPException(status_code=422, detail="image is required")
+    if not _insight_ready:
+        return JSONResponse(
+            {"success": False, "error": "InsightFace model is still loading — retry in ~30s"},
+            status_code=503,
+        )
+
+    # Decode base64 image → BGR numpy array (reuse existing b64_to_bgr helper)
+    try:
+        bgr = b64_to_bgr(b64)
+    except Exception as exc:
+        return JSONResponse({"success": False, "error": f"Image decode failed: {exc}"})
+
+    # Extract InsightFace embedding
+    with _insight_lock:
+        faces = _insight_app.get(bgr)
+
+    if not faces:
+        return JSONResponse({
+            "success": False,
+            "error":   "No face detected — ensure good lighting and look directly at the camera",
+        })
+
+    embedding: list = faces[0].normed_embedding.tolist()   # 512-D normed
+
+    # Build a 224×224 thumbnail for the admin panel
+    face_b64: str | None = None
+    try:
+        img = Image.fromarray(bgr[:, :, ::-1]).resize((224, 224), Image.LANCZOS)
+        buf = io.BytesIO()
+        img.save(buf, "JPEG", quality=85)
+        face_b64 = base64.b64encode(buf.getvalue()).decode()
+    except Exception as exc:
+        log.warning("Thumbnail error: %s", exc)
+
+    # Upsert in MongoDB
+    with _db_lock:
+        existing = insight_collection.find_one({"name": name})
+        uid = existing["user_id"] if existing else generate_unique_id()
+        insight_collection.update_one(
+            {"name": name},
+            {"$set": {
+                "user_id":    uid,
+                "embeddings": [embedding],
+                "face_b64":   face_b64 or (existing or {}).get("face_b64"),
+                "samples":    1,
+            }},
+            upsert=True,
+        )
+    log.info("InsightFace registered '%s' (uid=%s)", name, uid)
+    return {"success": True, "name": name, "user_id": uid}
+
+
+@app.get("/api/insight_faces.json")
+async def download_insight_faces():
+    """
+    Download all InsightFace (buffalo_s) embeddings for kiosk sync.
+    Format: { name: { user_id, embeddings: [[512-D]], face_b64, samples } }
+    """
+    docs = insight_collection.find({}, {"_id": 0})
+    result = {
+        doc["name"]: {
+            "user_id":    doc.get("user_id"),
+            "embeddings": doc.get("embeddings", []),
+            "face_b64":   doc.get("face_b64"),
+            "samples":    doc.get("samples", 0),
+        }
+        for doc in docs
+    }
+    return JSONResponse(result)
+
+
+@app.delete("/api/insight_faces/{name}")
+async def delete_insight_face(name: str):
+    """Remove a person from the InsightFace database."""
+    with _db_lock:
+        result = insight_collection.delete_one({"name": name})
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail=f"'{name}' not found in insight_users")
+    return {"success": True, "deleted": name}
+
 
 # ── Dev entry-point ────────────────────────────────────────────────────────────
 
