@@ -1,5 +1,5 @@
 """
-FaceDoor — Vercel/Cloud FastAPI Server
+ASBL Access — Vercel/Cloud FastAPI Server
 =======================================
 Endpoints:
   GET  /                      → Admin panel (static/index.html)
@@ -43,7 +43,7 @@ from PIL import Image
 
 # ── Logging ────────────────────────────────────────────────────────────────────
 logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(levelname)-7s  %(message)s")
-log = logging.getLogger("facedoor")
+log = logging.getLogger("asbl_access")
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 BASE_DIR  = Path(__file__).parent
@@ -165,7 +165,7 @@ def cosine_sim(a: list[float], b: list[float]) -> float:
     return float(np.dot(va, vb) / (np.linalg.norm(va) * np.linalg.norm(vb) + 1e-9))
 
 # ── FastAPI app ────────────────────────────────────────────────────────────────
-app = FastAPI(title="FaceDoor Cloud", version="1.0.0")
+app = FastAPI(title="ASBL Access", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -394,15 +394,17 @@ async def upload_faces_json(request: Request):
 
 # ── API: delete face ───────────────────────────────────────────────────────────
 
-@app.delete("/api/faces/{name}")
-async def delete_face(name: str):
+@app.delete("/api/faces/{user_id}")
+async def delete_face(user_id: str):
     """Remove a person from the database."""
     with _db_lock:
-        result = users_collection.delete_one({"name": name})
+        result = users_collection.delete_one({"user_id": user_id})
         if result.deleted_count == 0:
-            raise HTTPException(status_code=404, detail=f"'{name}' not found")
+            result = users_collection.delete_one({"name": user_id})
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail=f"'{user_id}' not found")
     remaining = users_collection.count_documents({})
-    return {"success": True, "deleted": name, "remaining": remaining}
+    return {"success": True, "deleted": user_id, "remaining": remaining}
 
 # ── InsightFace routes ─────────────────────────────────────────────────────────
 
@@ -506,6 +508,9 @@ async def insight_register(request: Request):
                 "embeddings": [embedding],
                 "face_b64":   face_b64 or (existing or {}).get("face_b64"),
                 "samples":    1,
+                "role":       (existing or {}).get("role", "resident"),
+                "allowed_amenities": (existing or {}).get("allowed_amenities", []),
+                "subscription_status": (existing or {}).get("subscription_status", "active"),
             }},
             upsert=True,
         )
@@ -517,7 +522,7 @@ async def insight_register(request: Request):
 async def download_insight_faces():
     """
     Download all InsightFace (buffalo_s) embeddings for kiosk sync.
-    Format: { name: { user_id, embeddings: [[512-D]], face_b64, samples } }
+    Format: { name: { user_id, embeddings: [[512-D]], face_b64, samples, role, allowed_amenities, subscription_status } }
     """
     docs = insight_collection.find({}, {"_id": 0})
     result = {
@@ -526,20 +531,66 @@ async def download_insight_faces():
             "embeddings": doc.get("embeddings", []),
             "face_b64":   doc.get("face_b64"),
             "samples":    doc.get("samples", 0),
+            "role":       doc.get("role", "resident"),
+            "allowed_amenities": doc.get("allowed_amenities", []),
+            "subscription_status": doc.get("subscription_status", "active"),
         }
         for doc in docs
     }
     return JSONResponse(result)
 
 
-@app.delete("/api/insight_faces/{name}")
-async def delete_insight_face(name: str):
+@app.put("/api/insight_faces/{user_id}")
+async def update_insight_face(user_id: str, request: Request):
+    """Update details for an InsightFace user."""
+    try:
+        body = await request.json()
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+    
+    update_data = {}
+    if "role" in body:
+        update_data["role"] = body["role"]
+    if "allowed_amenities" in body:
+        update_data["allowed_amenities"] = body["allowed_amenities"]
+    if "subscription_status" in body:
+        update_data["subscription_status"] = body["subscription_status"]
+    if "name" in body:
+        update_data["name"] = body["name"]
+    
+    if not update_data:
+        return {"success": True, "updated": False}
+
+    with _db_lock:
+        existing = insight_collection.find_one({"user_id": user_id})
+        if not existing:
+            existing = insight_collection.find_one({"name": user_id})
+            
+        if not existing:
+            raise HTTPException(status_code=404, detail=f"User '{user_id}' not found")
+            
+        if "name" in update_data and existing["name"] != update_data["name"]:
+            if insight_collection.find_one({"name": update_data["name"]}):
+                raise HTTPException(status_code=400, detail=f"Name '{update_data['name']}' already exists")
+            
+        result = insight_collection.update_one(
+            {"_id": existing["_id"]},
+            {"$set": update_data}
+        )
+
+    return {"success": True, "updated": True}
+
+
+@app.delete("/api/insight_faces/{user_id}")
+async def delete_insight_face(user_id: str):
     """Remove a person from the InsightFace database."""
     with _db_lock:
-        result = insight_collection.delete_one({"name": name})
+        result = insight_collection.delete_one({"user_id": user_id})
         if result.deleted_count == 0:
-            raise HTTPException(status_code=404, detail=f"'{name}' not found in insight_users")
-    return {"success": True, "deleted": name}
+            result = insight_collection.delete_one({"name": user_id})
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail=f"'{user_id}' not found in insight_users")
+    return {"success": True, "deleted": user_id}
 
 
 # ── Dev entry-point ────────────────────────────────────────────────────────────
@@ -547,5 +598,5 @@ async def delete_insight_face(name: str):
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 5050))
-    log.info("FaceDoor Cloud server starting on port %d …", port)
+    log.info("ASBL Access server starting on port %d …", port)
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)

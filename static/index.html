@@ -4,8 +4,9 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>FaceDoor Cloud — Admin Panel</title>
-    <meta name="description" content="FaceDoor admin panel — manage registered faces and sync with the door kiosk." />
+    <title>ASBL Access — Admin Panel</title>
+    <meta name="description"
+        content="ASBL Access admin panel — manage registered faces and sync with the door kiosk." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet" />
@@ -635,15 +636,15 @@
             <div class="logo">
                 <span class="logo-icon">🚪</span>
                 <div>
-                    <span class="logo-name">FaceDoor Cloud</span>
-                    <span class="logo-tag">ArcFace · Admin Panel</span>
+                    <span class="logo-name">ASBL Access</span>
+                    <span class="logo-tag">InsightFace · Admin Panel</span>
                 </div>
             </div>
             <div class="hdr-right">
-                <div class="model-pill" id="modelPill">
+                <!-- <div class="model-pill" id="modelPill">
                     <span class="spin"></span>
                     <span id="modelTxt">Loading ArcFace…</span>
-                </div>
+                </div> -->
                 <div class="status-pill">
                     <span class="status-dot"></span>
                     <span id="statusTxt">Live</span>
@@ -652,15 +653,15 @@
         </header>
 
         <!-- Stats row -->
-        <div class="stats-row">
-            <div class="stat-card accent-card">
+        <div class="stats-row" style="grid-template-columns: repeat(2, 1fr);">
+            <!-- <div class="stat-card accent-card">
                 <div class="stat-val" id="statTotal">—</div>
                 <div class="stat-lbl">ArcFace Users</div>
             </div>
             <div class="stat-card green-card">
                 <div class="stat-val" id="statModel">—</div>
                 <div class="stat-lbl">ArcFace Model</div>
-            </div>
+            </div> -->
             <div class="stat-card cyan-card">
                 <div class="stat-val" id="statInsightTotal">—</div>
                 <div class="stat-lbl">InsightFace Users</div>
@@ -674,10 +675,10 @@
         <div class="main">
             <!-- Left: two panels side by side -->
             <div>
-                <div class="panels-row">
+                <div class="panels-row" style="grid-template-columns: 1fr;">
 
                     <!-- ArcFace faces panel -->
-                    <div class="card">
+                    <!-- <div class="card">
                         <div class="card-title">
                             <span>🗂️</span> ArcFace Users
                             <span class="badge badge-arc">DeepFace</span>
@@ -690,7 +691,7 @@
                                 <p>Loading…</p>
                             </div>
                         </div>
-                    </div>
+                    </div> -->
 
                     <!-- InsightFace faces panel -->
                     <div class="card">
@@ -711,7 +712,7 @@
                 </div><!-- /panels-row -->
 
                 <!-- Sync card -->
-                <div class="card" style="margin-top:16px">
+                <!-- <div class="card" style="margin-top:16px">
                     <div class="card-title"><span>🔄</span> Sync ArcFace Database</div>
                     <div class="card-sub">
                         Download the current <code>faces.json</code> for the local kiosk,
@@ -724,14 +725,14 @@
                             <input type="file" accept=".json" onchange="uploadJson(this)" style="display:none" />
                         </label>
                     </div>
-                </div>
+                </div> -->
             </div>
 
             <!-- Right: registration cards + actions -->
             <div style="display:flex;flex-direction:column;gap:16px">
 
                 <!-- ArcFace registration -->
-                <div class="card">
+                <!-- <div class="card">
                     <div class="card-title"><span>📱</span> ArcFace Registration
                         <span class="badge badge-arc" style="margin-left:6px">5-pose</span>
                     </div>
@@ -740,7 +741,7 @@
                         <a class="btn btn-primary btn-full" href="/mobile" target="_blank">📱 Open ArcFace
                             Registration</a>
                     </div>
-                </div>
+                </div> -->
 
                 <!-- InsightFace registration -->
                 <div class="card" style="border-color:rgba(6,182,212,.3)">
@@ -769,12 +770,11 @@
                 <div class="card">
                     <div class="card-title"><span>⚡</span> Actions</div>
                     <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
-                        <button class="btn btn-full" id="btnLoadArcface" onclick="loadArcfaceModel()"
+                        <!-- <button class="btn btn-full" id="btnLoadArcface" onclick="loadArcfaceModel()"
                             style="background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;box-shadow:0 4px 18px rgba(108,92,231,.3)">
                             🧨 Load ArcFace Model
-                        </button>
-                        <button class="btn btn-outline btn-full" onclick="loadFaces();loadInsightFaces()">↻ Reload All
-                            Lists</button>
+                        </button> -->
+                        <button class="btn btn-outline btn-full" onclick="loadInsightFaces()">↻ Reload List</button>
                         <a class="btn btn-outline btn-full" href="/api/status" target="_blank">📊 API Status JSON</a>
                         <a class="btn btn-outline btn-full" href="/docs" target="_blank">📖 API Docs</a>
                     </div>
@@ -784,22 +784,64 @@
                 <div class="card">
                     <div class="card-title"><span>🔌</span> API Endpoints</div>
                     <div style="font-size:11px;color:var(--muted);line-height:2;font-family:monospace">
-                        <div style="color:var(--accent2);font-weight:700;margin-bottom:2px">── ArcFace ──</div>
+                        <!-- <div style="color:var(--accent2);font-weight:700;margin-bottom:2px">── ArcFace ──</div>
                         <div><span style="color:var(--green)">GET</span> /mobile</div>
                         <div><span style="color:var(--cyan)">POST</span> /api/mobile_register</div>
                         <div><span style="color:var(--green)">GET</span> /api/faces</div>
                         <div><span style="color:var(--green)">GET</span> /api/faces.json</div>
                         <div><span style="color:var(--cyan)">POST</span> /api/faces.json</div>
-                        <div><span style="color:var(--red)">DEL</span> /api/faces/{name}</div>
+                        <div><span style="color:var(--red)">DEL</span> /api/faces/{user_id}</div> -->
                         <div style="color:var(--cyan);font-weight:700;margin:6px 0 2px">── InsightFace ──</div>
                         <div><span style="color:var(--green)">GET</span> /insight_register</div>
                         <div><span style="color:var(--cyan)">POST</span> /api/insight_register</div>
                         <div><span style="color:var(--green)">GET</span> /api/insight_faces.json</div>
-                        <div><span style="color:var(--red)">DEL</span> /api/insight_faces/{name}</div>
+                        <div><span style="color:var(--cyan)">PUT</span> /api/insight_faces/{user_id}</div>
+                        <div><span style="color:var(--red)">DEL</span> /api/insight_faces/{user_id}</div>
                         <div><span style="color:var(--green)">GET</span> /api/insight_status</div>
                     </div>
                 </div>
 
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="editModal"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:1000; align-items:center; justify-content:center;">
+        <div
+            style="background:var(--surface); padding:24px; border-radius:16px; border:1px solid var(--border); width: 340px;">
+            <h3 style="margin-bottom:16px;">Edit User</h3>
+            <input type="hidden" id="editUserId" />
+
+            <label style="display:block; margin-bottom:8px; font-size:12px; color:var(--muted)">Name</label>
+            <input type="text" id="editName"
+                style="width:100%; padding:8px; margin-bottom:12px; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:white; font-family:var(--font);" />
+
+            <label style="display:block; margin-bottom:8px; font-size:12px; color:var(--muted)">Role</label>
+            <select id="editRole"
+                style="width:100%; padding:8px; margin-bottom:12px; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:white; font-family:var(--font);">
+                <option value="resident">resident</option>
+                <option value="trainer">trainer</option>
+                <option value="housekeeping">housekeeping</option>
+                <option value="manager">manager</option>
+            </select>
+
+            <label style="display:block; margin-bottom:8px; font-size:12px; color:var(--muted)">Allowed Amenities (comma
+                separated)</label>
+            <input type="text" id="editAmenities" placeholder="gym, pool, yoga"
+                style="width:100%; padding:8px; margin-bottom:12px; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:white; font-family:var(--font);" />
+
+            <label style="display:block; margin-bottom:8px; font-size:12px; color:var(--muted)">Subscription
+                Status</label>
+            <select id="editSubStatus"
+                style="width:100%; padding:8px; margin-bottom:20px; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:white; font-family:var(--font);">
+                <option value="active">active</option>
+                <option value="expired">expired</option>
+            </select>
+
+            <div style="display:flex; justify-content:flex-end; gap:8px;">
+                <button class="btn btn-outline" onclick="closeEditModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveEdit()">Save</button>
             </div>
         </div>
     </div>
@@ -889,39 +931,106 @@
                     ? `<img class="face-thumb" src="data:image/jpeg;base64,${f.face_b64}" alt="${f.name}"/>`
                     : `<div class="face-avatar">${f.name[0].toUpperCase()}</div>`;
                 const safe = f.name.replace(/'/g, "\\'");
+                const safeUid = f.user_id ? String(f.user_id).replace(/'/g, "\\'") : safe;
                 const uidHtml = f.user_id
                     ? `<span style="color:var(--muted);font-weight:normal;margin-left:6px;font-size:11px">#${f.user_id}</span>`
                     : '';
                 const samples = f.samples ?? (f.embeddings ? f.embeddings.length : 0);
+
+                let extraInfo = '';
+                let editBtn = '';
+                if (label === 'InsightFace') {
+                    const role = f.role || 'resident';
+                    const sub = f.subscription_status || 'active';
+                    const am = (f.allowed_amenities || []).join(', ');
+                    const safeAm = am.replace(/'/g, "\\'");
+                    extraInfo = `<div style="font-size:10.5px;color:var(--muted);margin-top:2px">
+                        <b>Role:</b> ${role} | <b>Sub:</b> ${sub}<br/>
+                        <b>Amenities:</b> <span style="font-family:monospace">${am || 'None'}</span>
+                    </div>`;
+                    editBtn = `<button class="del-btn" style="color:var(--cyan)" onclick="openEditModal('${safeUid}', '${safe}', '${role}', '${safeAm}', '${sub}')" title="Edit">✏️</button>`;
+                }
+
                 return `
   <div class="face-item">
     ${thumb}
     <div class="face-info">
       <div class="face-name">${f.name}${uidHtml}</div>
       <div class="face-samples">${samples} embedding${samples !== 1 ? 's' : ''}</div>
+      ${extraInfo}
     </div>
-    <button class="del-btn" onclick="${deleteFn.name}('${safe}')" title="Remove">🗑️</button>
+    ${editBtn}
+    <button class="del-btn" onclick="${deleteFn.name}('${safeUid}', '${safe}')" title="Remove">🗑️</button>
   </div>`;
             }).join('');
         }
 
         // ── Delete helpers ────────────────────────────────────────────────────────
-        async function deleteFace(name) {
+        async function deleteFace(uid, name) {
             if (!confirm(`Remove ${name} from ArcFace database?`)) return;
             try {
-                await fetch(`/api/faces/${encodeURIComponent(name)}`, { method: 'DELETE' });
+                const res = await fetch(`/api/faces/${encodeURIComponent(uid)}`, { method: 'DELETE' });
+                if (!res.ok) throw new Error();
                 showToast(`🗑️ ${name} removed from ArcFace.`, 'info');
                 loadFaces(); fetchStatus();
             } catch (_) { showToast('Delete failed.', 'err'); }
         }
 
-        async function deleteInsightFace(name) {
+        async function deleteInsightFace(uid, name) {
             if (!confirm(`Remove ${name} from InsightFace database?`)) return;
             try {
-                await fetch(`/api/insight_faces/${encodeURIComponent(name)}`, { method: 'DELETE' });
+                const res = await fetch(`/api/insight_faces/${encodeURIComponent(uid)}`, { method: 'DELETE' });
+                if (!res.ok) throw new Error();
                 showToast(`🗑️ ${name} removed from InsightFace.`, 'info');
                 loadInsightFaces(); fetchInsightStatus();
             } catch (_) { showToast('Delete failed.', 'err'); }
+        }
+
+        // ── Edit helpers ──────────────────────────────────────────────────────────
+        function openEditModal(uid, name, role, amenities, subStatus) {
+            document.getElementById('editModal').style.display = 'flex';
+            document.getElementById('editUserId').value = uid;
+            document.getElementById('editName').value = name;
+            document.getElementById('editRole').value = role;
+            document.getElementById('editAmenities').value = amenities;
+            document.getElementById('editSubStatus').value = subStatus;
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+        }
+
+        async function saveEdit() {
+            const uid = document.getElementById('editUserId').value;
+            const newName = document.getElementById('editName').value.trim();
+            const role = document.getElementById('editRole').value;
+            const amenitiesStr = document.getElementById('editAmenities').value;
+            const amenities = amenitiesStr.split(',').map(s => s.trim()).filter(Boolean);
+            const subStatus = document.getElementById('editSubStatus').value;
+
+            try {
+                const res = await fetch(`/api/insight_faces/${encodeURIComponent(uid)}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: newName,
+                        role: role,
+                        allowed_amenities: amenities,
+                        subscription_status: subStatus
+                    })
+                });
+
+                if (!res.ok) {
+                    const data = await res.json();
+                    throw new Error(data.detail || 'Failed to update');
+                }
+
+                showToast(`✅ User details updated.`, 'ok');
+                closeEditModal();
+                loadInsightFaces();
+            } catch (err) {
+                showToast('Update failed: ' + err.message, 'err');
+            }
         }
 
         // ── Upload faces.json (ArcFace) ───────────────────────────────────────────
@@ -997,13 +1106,13 @@
         }
 
         // ── Boot ─────────────────────────────────────────────────────────────────
-        fetchStatus();
+        // fetchStatus();
         fetchInsightStatus();
-        loadFaces();
+        // loadFaces();
         loadInsightFaces();
-        setInterval(fetchStatus, 5000);
+        // setInterval(fetchStatus, 5000);
         setInterval(fetchInsightStatus, 8000);
-        setInterval(loadFaces, 15000);
+        // setInterval(loadFaces, 15000);
         setInterval(loadInsightFaces, 15000);
     </script>
 </body>
