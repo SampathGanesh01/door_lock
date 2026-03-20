@@ -11,6 +11,11 @@ Endpoints:
   DELETE /api/faces/{name}    → Remove a person from the database
   GET  /api/status            → Health + model status
 
+  --- Occupancy & Session Tracking (v3) ---
+  POST /api/occupancy/enter   → Record entry event, increment occupancy counter
+  POST /api/occupancy/exit    → Record exit event, decrement occupancy counter, compute session duration
+  GET  /api/occupancy         → Get current occupancy count (both kiosks poll this)
+
 Fix notes (v2):
   • enforce_detection=False  — mobile selfies with unusual angle/lighting still processed
   • align=True everywhere    — embeddings from server and kiosk are now comparable
@@ -54,6 +59,17 @@ mongo_client = pymongo.MongoClient(MONGO_URI)
 db = mongo_client[DATABASE_NAME]
 users_collection    = db[COLLECTION_NAME]
 insight_collection  = db["insight_users"]   # separate collection for InsightFace embeddings
+occupancy_collection = db["occupancy"]        # amenity-level occupancy counters
+sessions_collection  = db["sessions"]         # per-user entry timestamps for duration tracking
+
+# Ensure occupancy documents exist for each amenity on startup
+_default_amenities = ["gym", "pool", "yoga"]
+for _amenity in _default_amenities:
+    occupancy_collection.update_one(
+        {"amenity": _amenity},
+        {"$setOnInsert": {"amenity": _amenity, "current": 0, "max": 50}},
+        upsert=True,
+    )
 
 def generate_unique_id() -> str:
     """Generate a unique 4-digit ID."""
@@ -591,6 +607,165 @@ async def delete_insight_face(user_id: str):
         if result.deleted_count == 0:
             raise HTTPException(status_code=404, detail=f"'{user_id}' not found in insight_users")
     return {"success": True, "deleted": user_id}
+
+
+# ── API: Occupancy Tracking ───────────────────────────────────────────────────
+#
+# Two kiosk devices (one Entry, one Exit) both talk to these endpoints.
+# Entry kiosk  → POST /api/occupancy/enter  (increments counter, records check-in time)
+# Exit kiosk   → POST /api/occupancy/exit   (decrements counter, returns session duration)
+# Both kiosks  → GET  /api/occupancy        (polled every 5s to keep occupancy count fresh)
+
+@app.post("/api/occupancy/enter")
+async def occupancy_enter(request: Request):
+    """
+    Called by the Entry kiosk when a face is successfully recognized.
+    Body: { "user_id": str, "amenity": str }  (amenity defaults to "gym")
+    Returns: { "success": bool, "current": int, "max": int }
+    """
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    user_id = (body.get("user_id") or "").strip()
+    amenity = (body.get("amenity") or "gym").strip().lower()
+
+    if not user_id:
+        raise HTTPException(status_code=422, detail="user_id is required")
+
+    entry_time = time.time()  # Unix timestamp
+
+    with _db_lock:
+        # Record check-in time for session duration (upsert per user — overwrite if re-entering)
+        sessions_collection.update_one(
+            {"user_id": user_id},
+            {"$set": {"user_id": user_id, "amenity": amenity, "entry_time": entry_time}},
+            upsert=True,
+        )
+
+        # Increment occupancy counter (floor at 0, no upper cap enforced server-side)
+        result = occupancy_collection.find_one_and_update(
+            {"amenity": amenity},
+            {"$inc": {"current": 1}},
+            upsert=True,
+            return_document=pymongo.ReturnDocument.AFTER,
+        )
+
+    current = result.get("current", 1) if result else 1
+    max_val = result.get("max", 50) if result else 50
+    log.info("[Occupancy] ENTER user=%s amenity=%s  current=%d/%d", user_id, amenity, current, max_val)
+    return {"success": True, "current": current, "max": max_val}
+
+
+@app.post("/api/occupancy/exit")
+async def occupancy_exit(request: Request):
+    """
+    Called by the Exit kiosk when a face is successfully recognized.
+    Body: { "user_id": str, "amenity": str }
+    Returns: { "success": bool, "current": int, "max": int, "session_seconds": int | null }
+    """
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    user_id = (body.get("user_id") or "").strip()
+    amenity = (body.get("amenity") or "gym").strip().lower()
+
+    if not user_id:
+        raise HTTPException(status_code=422, detail="user_id is required")
+
+    exit_time = time.time()
+    session_seconds: int | None = None
+
+    with _db_lock:
+        # Look up check-in time for this user
+        session_doc = sessions_collection.find_one({"user_id": user_id})
+        if session_doc and "entry_time" in session_doc:
+            session_seconds = int(exit_time - session_doc["entry_time"])
+            sessions_collection.delete_one({"user_id": user_id})  # clean up after exit
+
+        # Decrement occupancy (floor at 0)
+        result = occupancy_collection.find_one_and_update(
+            {"amenity": amenity, "current": {"$gt": 0}},
+            {"$inc": {"current": -1}},
+            return_document=pymongo.ReturnDocument.AFTER,
+        )
+        if result is None:
+            # Already at 0 — just fetch current doc without decrementing
+            result = occupancy_collection.find_one({"amenity": amenity})
+
+    current = result.get("current", 0) if result else 0
+    max_val = result.get("max", 50) if result else 50
+    log.info(
+        "[Occupancy] EXIT user=%s amenity=%s  current=%d/%d  session=%s",
+        user_id, amenity, current, max_val, f"{session_seconds}s" if session_seconds else "unknown"
+    )
+    return {"success": True, "current": current, "max": max_val, "session_seconds": session_seconds}
+
+
+@app.get("/api/occupancy")
+async def get_occupancy(amenity: str = "gym"):
+    """
+    Polled by both kiosks every 5s to refresh the live occupancy counter.
+    Query param: ?amenity=gym  (defaults to gym)
+    Returns: { "amenity": str, "current": int, "max": int }
+    """
+    amenity = amenity.strip().lower()
+    doc = occupancy_collection.find_one({"amenity": amenity})
+    if not doc:
+        # Auto-create if missing
+        occupancy_collection.insert_one({"amenity": amenity, "current": 0, "max": 50})
+        return {"amenity": amenity, "current": 0, "max": 50}
+    return {"amenity": amenity, "current": doc.get("current", 0), "max": doc.get("max", 50)}
+
+
+@app.put("/api/occupancy/max")
+async def set_max_occupancy(request: Request):
+    """
+    Admin: set maximum occupancy for an amenity.
+    Body: { "amenity": str, "max": int }
+    """
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+    amenity = (body.get("amenity") or "gym").strip().lower()
+    max_val = body.get("max")
+    if not isinstance(max_val, int) or max_val < 1:
+        raise HTTPException(status_code=422, detail="max must be a positive integer")
+    with _db_lock:
+        occupancy_collection.update_one(
+            {"amenity": amenity},
+            {"$set": {"max": max_val}},
+            upsert=True,
+        )
+    return {"success": True, "amenity": amenity, "max": max_val}
+
+
+@app.post("/api/occupancy/reset")
+async def reset_occupancy(request: Request):
+    """
+    Admin: reset occupancy counter (e.g. at end of day).
+    Body: { "amenity": str }   (omit to reset ALL amenities)
+    """
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    amenity = (body.get("amenity") or "").strip().lower()
+    with _db_lock:
+        if amenity:
+            occupancy_collection.update_one({"amenity": amenity}, {"$set": {"current": 0}})
+            sessions_collection.delete_many({"amenity": amenity})
+            log.info("[Occupancy] RESET amenity=%s", amenity)
+            return {"success": True, "reset": amenity}
+        else:
+            occupancy_collection.update_many({}, {"$set": {"current": 0}})
+            sessions_collection.delete_many({})
+            log.info("[Occupancy] RESET all amenities")
+            return {"success": True, "reset": "all"}
 
 
 # ── Dev entry-point ────────────────────────────────────────────────────────────
